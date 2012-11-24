@@ -8,5 +8,5 @@
 
 #define SHM_NAME "/blah"
 
-void * dsm_open(void * addr, size_t size);
+void * dsm_open(void * addr, size_t size, void* (*loop)(void *));
 void dsm_close();

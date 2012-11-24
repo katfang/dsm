@@ -18,8 +18,6 @@ int
 main() {
   void *addr = dsm_open((void*) 0xdeadbeef000, (size_t) 4096, loop);
 
-  loop(NULL);
-
   printf("Exiting.\n");
   dsm_close();
   exit(0);

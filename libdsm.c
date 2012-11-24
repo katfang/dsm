@@ -1,0 +1,89 @@
+#include "libdsm.h"
+#include "service.h"
+#define DEBUG 1
+
+// for handling shared memory
+static int fd;
+
+// for handling the service thread 
+static pthread_t tha;
+static pthread_mutex_t service_start_lock = PTHREAD_MUTEX_INITIALIZER; 
+static int service_state = 0; 
+
+/** Just try to make a page writable for now. */
+void dsm_handler(int signum, siginfo_t *info, void *ucontext) {
+  if (DEBUG) printf("[libdsm] fault handled at address %p!\n", info->si_addr);
+  if (DEBUG) printf("[libdsm] marking page at %p as writable\n", info->si_addr);
+
+  int r;
+  r = mprotect(info->si_addr, 4096, PROT_READ | PROT_WRITE);
+
+  if (r < 0) {
+    if (DEBUG) printf("[libdsm] error code %d\n", errno);
+  } else {
+    if (DEBUG) printf("[libdsm] marked as writable\n");
+  }
+}
+
+/** Will eventually be the thread that handles requests. */
+static void * 
+service_thread(void *xa)
+{
+  // Do set up and release lock so that other thread can continue
+  if (DEBUG) printf("[libdsm] Service thread started...\n");
+  pthread_mutex_unlock(&service_start_lock);
+  
+  // Ended service thread?!
+  if (DEBUG) printf("[libdsm] Service thread is done...\n");
+  return NULL;
+}
+
+/** Just starts the service thread */
+void
+start_service_thread(void) {
+  if (service_state > 0) return;
+  
+  // Locks ensure that the service thread is actually created
+  // before we return to the user. Associated unlock is in the 
+  // * error-handling if case or
+  // * service_thread function (after it's done setting up.)
+  pthread_mutex_lock(&service_start_lock);
+
+  // Create thread, wait for lock to release before success 
+  if (pthread_create(&tha, NULL, service_thread, NULL) == 0) {
+    pthread_mutex_lock(&service_start_lock);
+    service_state = 1;
+    pthread_mutex_unlock(&service_start_lock);
+
+  // Things failed, give up the lock. !!! Probably need to retry or exit.
+  } else {
+    if (DEBUG) printf("Error starting service thread.\n");
+    pthread_mutex_unlock(&service_start_lock);
+  }
+}
+
+/** Opens a new distributed shared memory object. */
+void * dsm_open(void * addr, size_t size) {
+  // set up the shared memory object
+  fd = shm_open(SHM_NAME, O_RDWR|O_CREAT|O_EXCL, S_IRWXU);
+  ftruncate(fd, 4096);
+  void *result = mmap(addr, size, PROT_READ, MAP_PRIVATE, fd, 0);
+
+  // set up fault handling
+  struct sigaction s;
+  s.sa_sigaction = dsm_handler;
+  sigemptyset(&s.sa_mask);
+  s.sa_flags = SA_SIGINFO;
+  sigaction(SIGSEGV, &s, NULL);
+
+  // start the service thread
+  start_service_thread();
+
+  return result;
+}
+
+/** Close off things when done. */
+void dsm_close() {
+  shm_unlink(SHM_NAME);
+  close(fd);
+}

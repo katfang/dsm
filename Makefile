@@ -1,5 +1,7 @@
 CC=gcc
 
+all: dsm_test.o
+
 dsm_test.o: dsm_test.c libdsm.so
 	$(CC) dsm_test.c -o dsm_test -L. -ldsm -lrt
 

@@ -133,13 +133,13 @@ void * dsm_open(void * addr, size_t size, void * (*loop)(void *)) {
   // start the service thread
   tha = malloc(sizeof(pthread_t) * 2);
   start_service_thread();
-  pthread_create(&tha[1], NULL, loop, NULL);
+  /* pthread_create(&tha[1], NULL, loop, NULL);
   
   unsigned i;
   void *value;
   for(i = 0; i < 2; i++) {
     pthread_join(tha[i], &value);
-  }
+  } */
 
   return result;
 }

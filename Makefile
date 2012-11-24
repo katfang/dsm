@@ -12,4 +12,4 @@ libdsm.so: libdsm.o
 	ld -shared -o libdsm.so libdsm.o -ldl
 
 clean:
-	rm *.o *.so dsm_test /dev/shm/blah
+	rm -f *.o *.so dsm_test /dev/shm/blah

@@ -5,19 +5,6 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
-void handler(int signum, siginfo_t *info, void *ucontext) {
-  printf("fault handled at address %p!\n", info->si_addr);
-  printf("marking page at %p as writable\n", info->si_addr);
-  int r;
-  r = mprotect(info->si_addr, 4096, PROT_READ | PROT_WRITE);
-  if (r < 0) {
-    printf("error code %d\n", errno);
-  } else {
-    printf("marked as writable\n");
-  }
-}
-
-
 int main() {
   // create a new shared memory object to map.  could also do existing page, but
   // I'm somehow too lazy.  Using a shared memory object is the only

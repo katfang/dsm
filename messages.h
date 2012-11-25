@@ -1,13 +1,18 @@
 #ifndef DSM_MESSAGES_H
-#define DSM_MESSAGES_H 
+#define DSM_MESSAGES_H
+
+#include <stdint.h>
 
 enum msg_t {
     READ,
     WRITE
 };
 
-typedef int client_id_t; // given copyset representation, this should probably
-                         // be in [0, 64)
+typedef uint64_t copyset_t;
+typedef uint64_t client_id_t; // given copyset representation, this should probably
+                              // be in [0, 64]
+
+client_id_t lowest_id(copyset_t id_set);
 
 #pragma pack(push)
 #pragma pack(1)

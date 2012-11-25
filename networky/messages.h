@@ -1,11 +1,9 @@
-#include <netinet.h>
-
 enum msg_t {
     READ,
     WRITE
 };
 
-typedef client_id_t int; // given copyset representation, this should probably
+typedef int client_id_t; // given copyset representation, this should probably
                          // be in [0, 64)
 
 #pragma pack(push)
@@ -16,12 +14,6 @@ struct RequestPageMessage {
     client_id_t from;
 };
 
-struct SendPageMessage {
-    enum msg_t type;
-    void *pg_address;
-    client_id_t send_to;
-}
-
 struct PageInfoMessage {
     enum msg_t type;
     void *pg_address;
@@ -29,5 +21,5 @@ struct PageInfoMessage {
                      // also limits us to 64 processes
     int pg_size;
     char pg_contents[];
-}
+};
 #pragma pack(pop)

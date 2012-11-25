@@ -10,6 +10,8 @@
 #include <netdb.h>
 #include "messages.h"
 
+#define MAXBUFLEN 700
+
 char *ips[] = {
   "127.0.0.1", // actually server
   "127.0.0.1",

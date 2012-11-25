@@ -8,19 +8,22 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <pthread.h>
 #include "messages.h"
 #include "sender.h"
-
-#define MYPORT "14000"
-#define MAXBUFLEN 700
 
 void forward_request(struct RequestPageMessage * msg) {
   unsigned pg_owner;
   // TODO look up owner
 
-  printf("type: %d address %p from %d\n", msg->type, msg->pg_address, msg->from);
+  printf("[master] type: %d address %p from %d\n", msg->type, msg->pg_address, msg->from);
   
   // send_to_client(pg_owner, msg, sizeof(*msg));
+}
+
+void * handle_request(void *xa) {
+  forward_request( (struct RequestPageMessage *) xa);
+  return NULL;
 }
 
 // get sockaddr, IPv4 or IPv6:
@@ -54,13 +57,13 @@ int main(void) {
   
   for (p = servinfo; p != NULL; p = p->ai_next) {
     if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
-      perror("listener: socket");
+      perror("[master] socket");
       continue;
     }
 
     if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
       close(sockfd);
-      perror("listener: bind");
+      perror("[master] bind");
       continue;
     }
 
@@ -68,7 +71,7 @@ int main(void) {
   }
 
 	if (p == NULL) {
-		fprintf(stderr, "listener: failed to bind socket\n");
+		fprintf(stderr, "[master] failed to bind socket\n");
 		return 2;
 	}
 
@@ -76,27 +79,26 @@ int main(void) {
 
 	unsigned i = 0;
 	for (i = 0; i < 10; i++) {
-		printf("listener: waiting to recvfrom...\n");
+		printf("[master] waiting to receive...\n");
 
 		addr_len = sizeof sender_addr;
 		if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN-1 , 0,
 			(struct sockaddr *)&sender_addr, &addr_len)) == -1) {
-			perror("recvfrom");
+			perror("[master] failed to recvfrom");
 			exit(1);
 		}
 
-		printf("listener: got packet from %s %d\n",
+		printf("[master] got packet from %s %d\n",
 			inet_ntop(sender_addr.ss_family,
 				get_in_addr((struct sockaddr *)&sender_addr),
 				s, sizeof s), *(int*) (get_in_addr((struct sockaddr *)&sender_addr)));
 		buf[numbytes] = '\0';
-    forward_request( (struct RequestPageMessage *) buf);
-
-		printf("listener: packet contains \"%s\"\n", buf);
+    pthread_t tha;
+    pthread_create(&tha, NULL, handle_request, buf);
 	}
 
 	close(sockfd);
 
-  printf("Master ending...\n");
+  printf("[master] ending...\n");
   return 0; 
 }

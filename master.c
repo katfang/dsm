@@ -8,7 +8,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-#include "networky/messages.h"
+#include "messages.h"
+#include "sender.h"
 
 #define MYPORT "14000"
 #define MAXBUFLEN 700
@@ -45,7 +46,7 @@ int main(void) {
   hints.ai_flags = AI_PASSIVE; // use my IP
   
   // Get address info
-  r = getaddrinfo(NULL, MYPORT, &hints, &servinfo);
+  r = getaddrinfo(NULL, ports[0], &hints, &servinfo);
   if (r != 0) {
     fprintf(stderr, "getaddinfo: %s\n", gai_strerror(r));
     return 1;

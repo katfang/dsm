@@ -1,3 +1,6 @@
+#ifndef DSM_MESSAGES_H
+#define DSM_MESSAGES_H 
+
 enum msg_t {
     READ,
     WRITE
@@ -23,3 +26,5 @@ struct PageInfoMessage {
     char pg_contents[];
 };
 #pragma pack(pop)
+
+#endif

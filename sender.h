@@ -10,4 +10,18 @@
 #include <netdb.h>
 #include "messages.h"
 
+char *ips[] = {
+  "127.0.0.1", // actually server
+  "127.0.0.1",
+  "127.0.0.1",
+  "127.0.0.1",
+};
+
+char *ports[] = {
+  "14000", // actually server
+  "14001",
+  "14002",
+  "14003",
+};
+
 int send_to_client(client_id_t id, void * msg, size_t size);

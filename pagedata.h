@@ -26,7 +26,19 @@
 
 typedef uint64_t data_t;
 
-int set_page_data(void *va, data_t id);
-int get_page_data(void *va, data_t *id_out);
+// These tables reflect the standard 4-level 64-bit page table
+
+typedef data_t *pme_t;
+typedef pme_t *pue_t;
+typedef pue_t *pge_t;
+struct DataTable {
+  pge_t *table;
+  pthread_mutex_t lock;
+};
+
+struct DataTable * alloc_data_table();
+
+int set_page_data(struct DataTable *table, void *va, data_t id);
+int get_page_data(struct DataTable *table, void *va, data_t *id_out);
 
 #endif // DSM_PAGEDATA_H

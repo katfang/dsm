@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "pagedata.h"
 
 #define DEBUG 1
 

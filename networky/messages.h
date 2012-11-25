@@ -19,14 +19,12 @@ struct RequestPageMessage {
 struct SendPageMessage {
     enum msg_t type;
     void *pg_address;
-    client_id_t to;
     client_id_t send_to;
 }
 
 struct PageInfoMessage {
     enum msg_t type;
     void *pg_address;
-    client_id_t to;
     uint64_t copyset; // irrelevant if type != WRITE
                      // also limits us to 64 processes
     int pg_size;

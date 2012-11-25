@@ -51,7 +51,7 @@ int main(void) {
     return 1;
   }
   
-  for (p = servinfo; p != NULL; p = p-> ai_next) {
+  for (p = servinfo; p != NULL; p = p->ai_next) {
     if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
       perror("listener: socket");
       continue;

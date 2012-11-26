@@ -1,6 +1,7 @@
 #include "libdsm.h"
 #include "messages.h"
 #include "pagedata.h"
+#include "pagelocks.h"
 #include "sender.h"
 
 #define DEBUG 1
@@ -15,9 +16,10 @@ static client_id_t id; // TODO: initialize this
 static int service_state = 0;
 pthread_mutex_t service_started_lock = PTHREAD_MUTEX_INITIALIZER;
 
-void process_read_request(void * addr, client_id_t requester) {
-  // TODO: Handle case when I'm a writer
+void process_read_request(void * addr, client_id_t requester) {    
   int r;
+  page_lock(addr);
+  // TODO: Handle case when I'm a writer
 
   // Set page perms to READ
   r = mprotect(addr, PGSIZE, PROT_READ);
@@ -30,7 +32,7 @@ void process_read_request(void * addr, client_id_t requester) {
   // Add reader to copyset
   copyset_t copyset;
   get_page_data(copysets, addr, &copyset);
-  copyset |= 1 << (requester - 1);
+  copyset = add_to_copyset(copyset, requester);
   set_page_data(copysets, addr, copyset);
 
   // Send page
@@ -40,12 +42,15 @@ void process_read_request(void * addr, client_id_t requester) {
   outmsg.copyset = copyset;
   memcpy(outmsg.pg_contents, addr, PGSIZE);
   send_to_client(requester, &outmsg, sizeof(outmsg));
+  
+  page_unlock(addr);
 }
 
 /** Someone is requesting a write */
 void process_write_request(void * addr, client_id_t requester) {
   int r;
-
+  page_lock(addr);
+  
   // Set page perms to NONE
   r = mprotect(addr, PGSIZE, PROT_NONE);
   if (r < 0) {
@@ -64,6 +69,8 @@ void process_write_request(void * addr, client_id_t requester) {
   outmsg.copyset = copyset;
   memcpy(outmsg.pg_contents, addr, PGSIZE);
   send_to_client(requester, &outmsg, sizeof(outmsg));
+  
+  page_unlock(addr);
 }
 
 
@@ -74,7 +81,13 @@ int is_write_fault(int signum, siginfo_t *info, void *ucontext) {
 
 /** Get write access to a page ... blocks */
 void get_write_access(void * addr) {
-  // TODO: Go to the network
+  page_lock(addr);
+  
+  // TODO: ask manager for write access to page
+  // TODO: invalidate page's copyset
+  
+  // copyset = {}
+  set_page_data(copysets, addr, 0);
 
   int r = mprotect(addr, PGSIZE, PROT_READ | PROT_WRITE);
 
@@ -83,11 +96,14 @@ void get_write_access(void * addr) {
   } else {
     if (DEBUG) printf("[libdsm] marked as writable\n");
   }
+  page_unlock(addr);
 }
 
 /** Get read access to a page ... blocks */
 void get_read_access(void * addr) {
-  // TODO: Go to the network
+  page_lock(addr);
+
+  // TODO: ask manager for read access to page
 
   int r = mprotect(addr, PGSIZE, PROT_READ);
 
@@ -96,6 +112,7 @@ void get_read_access(void * addr) {
   } else {
     if (DEBUG) printf("[libdsm] marked as writable\n");
   }
+  page_unlock(addr);
 }
 
 /** Just try to make a page writable for now. */

@@ -7,14 +7,14 @@
  */
 
 char *ips[] = {
-  "127.0.0.1", // actually server
+  "127.0.0.1", // actually manager
   "127.0.0.1",
   "127.0.0.1",
   "127.0.0.1",
 };
 
 char *ports[] = {
-  "14000", // actually server
+  "14000", // actually manager
   "14001",
   "14002",
   "14003",
@@ -26,10 +26,6 @@ int send_to_client(client_id_t id, void * msg, size_t size) {
   struct addrinfo hints, *servinfo, *p;
   int rv;
   int numbytes;
-
-  memset(&hints, 0, sizeof hints);
-  hints.ai_family = AF_UNSPEC;
-  hints.ai_socktype = SOCK_DGRAM;
 
   if ((rv = getaddrinfo(ips[id], ports[id], &hints, &servinfo)) != 0) {
     fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));

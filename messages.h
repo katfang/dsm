@@ -1,5 +1,5 @@
-#ifndef DSM_MESSAGES_H
-#define DSM_MESSAGES_H
+#ifndef _DSM_MESSAGES_H
+#define _DSM_MESSAGES_H
 
 #include "pagedata.h"
 #include "copyset.h"
@@ -23,6 +23,7 @@ struct PageInfoMessage {
     copyset_t copyset;                    
     char pg_contents[PGSIZE];
 };
+
 #pragma pack(pop)
 
 #endif

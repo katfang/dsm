@@ -15,7 +15,7 @@
 #include "messages.h"
 #include "sender.h"
 #include "pagedata.h"
-#include "server.h"
+#include "network.h"
 
 #define DEBUG 1
 
@@ -52,12 +52,6 @@ void forward_request(struct RequestPageMessage * msg) {
   pthread_mutex_unlock(&manager_lock);
 }
 
-void * handle_request(void *xa) {
-  struct RequestPageMessage *msg = (struct RequestPageMessage *) xa;
-  forward_request( (struct RequestPageMessage *) xa);
-  return NULL;
-}
-
 int main(void) {
   int sockfd;
 
@@ -65,9 +59,13 @@ int main(void) {
   owner_table = alloc_data_table();
 
   // open a socket and listen on it.
-  sockfd = open_socket(ports[0]);
-  listen_on_socket(sockfd, handle_request); 
+  sockfd = open_socket(atoi(ports[0]));
 
+  struct RequestPageMessage *msg;
+  while (msg = recvReqPgMsg(sockfd)) {
+    forward_request(msg);
+    free(msg);
+  }
   printf("[manager] ending...\n");
   return 0; 
 }

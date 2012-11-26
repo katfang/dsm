@@ -10,18 +10,20 @@
 
 struct DataTable *
 alloc_data_table()
-{
+{  
   struct DataTable *tbl = malloc(sizeof(struct DataTable));
   tbl->table = malloc(sizeof(pge_t) * TBLENTRIES);
   memset(tbl->table, 0, sizeof(pge_t) * TBLENTRIES);
   pthread_mutex_init(&tbl->lock, NULL);
+  return tbl;
 }
 
 int
 set_page_data(struct DataTable *tbl, void *va, data_t id)
 {
   int i;
-  
+
+  if (DEBUG) printf("set_page_data at %p\n", va);
   pge_t *pge = &(tbl->table)[PGX(va)];
   if(! *pge) {
     pthread_mutex_lock(&tbl->lock);

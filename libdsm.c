@@ -116,7 +116,8 @@ void get_write_access(void * addr) {
 
   while(copyset) {
     client_id_t reader = lowest_id(copyset);
-    
+
+    if (DEBUG) printf("[libdsm] sending INVAL of page %p to " PRIu64 "\n", addr, reader);
     struct RequestPageMessage invalmsg;
     invalmsg.type = INVAL;
     invalmsg.pg_address = addr;
@@ -194,7 +195,7 @@ void handle_request(struct RequestPageMessage *msg) {
   case WRITE:
     process_write_request(msg->pg_address, msg->from);
   case INVAL:
-    // TODO: invalidate the page
+    if (DEBUG) printf("[libdsm] invalidating page %p\n", msg->pg_address);
     mprotect(msg->pg_address, PGSIZE, PROT_NONE);
   }
 }

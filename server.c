@@ -20,13 +20,13 @@ int open_socket(char * port) {
 
   for (p = servinfo; p != NULL; p = p->ai_next) {
     if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
-      perror("[manager] socket");
+      perror("[server] socket");
       continue;
     }
 
     if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
       close(sockfd);
-      perror("[manager] bind");
+      perror("[server] bind");
       continue;
     }
 
@@ -34,7 +34,7 @@ int open_socket(char * port) {
   }
 
 	if (p == NULL) {
-		fprintf(stderr, "[manager] failed to bind socket\n");
+		fprintf(stderr, "[server] failed to bind socket\n");
 		return 2;
 	}
 
@@ -59,16 +59,16 @@ void listen_on_socket(int sockfd, void* (*handler) (void*)) {
   char s[INET6_ADDRSTRLEN];
 
   while (1) {	
-		if (DEBUG) printf("[manager] waiting to receive...\n");
+		if (DEBUG) printf("[server] waiting to receive...\n");
 
 		addr_len = sizeof sender_addr;
 		if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN-1 , 0,
 			(struct sockaddr *)&sender_addr, &addr_len)) == -1) {
-			perror("[manager] failed to recvfrom");
+			perror("[server] failed to recvfrom");
 			exit(1);
 		}
 
-		if (DEBUG) printf("[manager] got packet from %s %d\n",
+		if (DEBUG) printf("[server] got packet from %s %d\n",
 			inet_ntop(sender_addr.ss_family,
 				get_in_addr((struct sockaddr *)&sender_addr),
 				s, sizeof s), *(int*) (get_in_addr((struct sockaddr *)&sender_addr)));

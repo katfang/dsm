@@ -32,7 +32,7 @@ copyset.o: copyset.c copyset.h
 	$(CC) -fPIC -DPIC -c copyset.c
 
 server.o: server.c server.h
-	$(CC) -c server.c
+	$(CC) -c server.c -lpthread
 
 manager.o: manager.c sender.h pagedata.h messages.h copyset.h server.h
 	$(CC) manager.c -c -lpthread

@@ -66,17 +66,12 @@ void *get_in_addr(struct sockaddr *sa) {
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-int main(void) {
-  int sockfd;
+void listen_on_socket(int sockfd, void* (*handler) (void*)) {
   int numbytes;
   struct sockaddr_storage sender_addr;
   char buf[MAXBUFLEN];
   socklen_t addr_len;
   char s[INET6_ADDRSTRLEN];
-
-  sockfd = open_socket(ports[0]);
-
-  owner_table = alloc_data_table();
 
   while (1) {	
 		if (DEBUG) printf("[manager] waiting to receive...\n");
@@ -94,10 +89,20 @@ int main(void) {
 				s, sizeof s), *(int*) (get_in_addr((struct sockaddr *)&sender_addr)));
 		buf[numbytes] = '\0';
     pthread_t tha;
-    pthread_create(&tha, NULL, handle_request, buf);
+    pthread_create(&tha, NULL, handler, buf);
 	}
 
 	close(sockfd);
+}
+
+int main(void) {
+  int sockfd;
+
+  sockfd = open_socket(ports[0]);
+
+  owner_table = alloc_data_table();
+
+  listen_on_socket(sockfd, handle_request); 
 
   printf("[manager] ending...\n");
   return 0; 

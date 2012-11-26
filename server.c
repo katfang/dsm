@@ -1,7 +1,5 @@
 #include "server.h"
 
-#define DEBUG 1
-
 int open_socket(char * port) {
   struct addrinfo hints, *servinfo, *p;
   int r, sockfd;

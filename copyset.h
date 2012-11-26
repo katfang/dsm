@@ -1,5 +1,9 @@
 #ifndef DSM_COPYSET_H
 #define DSM_COPYSET_H
+
+#define __STDC_FORMAT_MACROS
+
+#include <inttypes.h> 
 #include <stdint.h>
 
 typedef uint64_t copyset_t;   // limits us to 64 processes

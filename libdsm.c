@@ -13,7 +13,7 @@
 // for handling shared memory
 static int fd;
 
-static struct DataTable *copysets; // TODO: initialize this, with do_get_faults = 0
+static struct DataTable *copysets;
 static client_id_t id; // TODO: initialize this
 
 // for handling the service thread
@@ -23,6 +23,7 @@ static int service_state = 0;
 
 void process_read_request(void * addr, client_id_t requester) {    
   int r;
+  if (DEBUG) printf("[libdsm] process_read_request %p\n", addr);
   page_lock(addr);
   // TODO: Handle case when I'm a writer... if it's relevant?
 
@@ -54,6 +55,7 @@ void process_read_request(void * addr, client_id_t requester) {
 /** Someone is requesting a write */
 void process_write_request(void * addr, client_id_t requester) {
   int r;
+  if (DEBUG) printf("[libdsm] process_write_request %p\n", addr);
   page_lock(addr);
   
   // Set page perms to NONE
@@ -81,11 +83,13 @@ void process_write_request(void * addr, client_id_t requester) {
 
 /** Check if it's a write fault or read fault: returns 1 if write fault*/
 int is_write_fault(int signum, siginfo_t *info, void *ucontext) {
-    return !!(((ucontext_t *) ucontext)->uc_mcontext.gregs[REG_ERR] & 4);
+    // !! normalizes to 0 or 1
+    return !!(((ucontext_t *) ucontext)->uc_mcontext.gregs[REG_ERR] & PTE_W); 
 }
 
 /** Get write access to a page ... blocks */
 void get_write_access(void * addr) {
+  if (DEBUG) printf("[libdsm] get_write_access %p\n", addr);
   page_lock(addr);
   
   // TODO: ask manager for write access to page
@@ -106,6 +110,7 @@ void get_write_access(void * addr) {
 
 /** Get read access to a page ... blocks */
 void get_read_access(void * addr) {
+  if (DEBUG) printf("[libdsm] get_read_access %p\n", addr);
   page_lock(addr);
 
   // TODO: ask manager for read access to page
@@ -136,7 +141,12 @@ void * service_thread(void *xa) {
 
   unsigned i = 0;
   pthread_mutex_lock(&service_started_lock);
+  
+  // initialization stuff
   service_state = 1;
+  copysets = alloc_data_table();
+  copysets->do_get_faults = 0;
+  
   pthread_cond_broadcast(&service_started_cond);
   pthread_mutex_unlock(&service_started_lock);
 

@@ -58,50 +58,14 @@ void * handle_request(void *xa) {
   return NULL;
 }
 
-// get sockaddr, IPv4 or IPv6:
-void *get_in_addr(struct sockaddr *sa) {
-	if (sa->sa_family == AF_INET) {
-		return &(((struct sockaddr_in*)sa)->sin_addr);
-	}
-	return &(((struct sockaddr_in6*)sa)->sin6_addr);
-}
-
-void listen_on_socket(int sockfd, void* (*handler) (void*)) {
-  int numbytes;
-  struct sockaddr_storage sender_addr;
-  char buf[MAXBUFLEN];
-  socklen_t addr_len;
-  char s[INET6_ADDRSTRLEN];
-
-  while (1) {	
-		if (DEBUG) printf("[manager] waiting to receive...\n");
-
-		addr_len = sizeof sender_addr;
-		if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN-1 , 0,
-			(struct sockaddr *)&sender_addr, &addr_len)) == -1) {
-			perror("[manager] failed to recvfrom");
-			exit(1);
-		}
-
-		if (DEBUG) printf("[manager] got packet from %s %d\n",
-			inet_ntop(sender_addr.ss_family,
-				get_in_addr((struct sockaddr *)&sender_addr),
-				s, sizeof s), *(int*) (get_in_addr((struct sockaddr *)&sender_addr)));
-		buf[numbytes] = '\0';
-    pthread_t tha;
-    pthread_create(&tha, NULL, handler, buf);
-	}
-
-	close(sockfd);
-}
-
 int main(void) {
   int sockfd;
 
-  sockfd = open_socket(ports[0]);
-
+  // start the table to keep track of who's the owner
   owner_table = alloc_data_table();
 
+  // open a socket and listen on it.
+  sockfd = open_socket(ports[0]);
   listen_on_socket(sockfd, handle_request); 
 
   printf("[manager] ending...\n");

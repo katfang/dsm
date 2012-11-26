@@ -1,23 +1,28 @@
 #define _GNU_SOURCE // this is for accessing fault contexts
+#include <pthread.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ucontext.h>
+
 #include "copyset.h"
 #include "libdsm.h"
 #include "messages.h"
 #include "network.h"
 #include "pagedata.h"
 #include "pagelocks.h"
-#include <signal.h>
-#include <string.h>
-#include <sys/ucontext.h>
 
 #define DEBUG 1
 
 // for handling shared memory
 static int fd;
 
-static struct DataTable *copysets;
-static client_id_t id; // TODO: initialize this
+static int pg_info_fd;
 
-// for handling the service thread
+static struct DataTable *copysets;
+static client_id_t id;
+
+// for handling the service thread 
 pthread_mutex_t service_started_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t service_started_cond = PTHREAD_COND_INITIALIZER;
 static int dsm_initialized = 0;
@@ -97,13 +102,14 @@ void get_write_access(void * addr) {
   msg.type = WRITE;
   msg.pg_address = addr;
   msg.from = id;
-  send_to_client(0, &msg, sizeof(msg));
+  if (DEBUG) printf("setting msg.from to %d\n", msg.from);
+  sendReqPgMsg(&msg, 0);
 
-  // TODO somehow wait for response
+  struct PageInfoMessage *info_msg = recvPgInfoMsg(pg_info_fd);
   
   // invalidate page's copyset
-  copyset_t copyset;
-  get_page_data(copysets, addr, &copyset); // or maybe get this from above step.
+  copyset_t copyset = info_msg->copyset;
+  set_page_data(copysets, addr, copyset);
 
   while(copyset) {
     client_id_t reader = lowest_id(copyset);
@@ -112,7 +118,7 @@ void get_write_access(void * addr) {
     invalmsg.type = INVAL;
     invalmsg.pg_address = addr;
     invalmsg.from = id;
-    send_to_client(reader, &invalmsg, sizeof(invalmsg));
+    sendReqPgMsg(&invalmsg, reader);
 
     copyset = remove_from_copyset(copyset, reader);
   }
@@ -121,6 +127,8 @@ void get_write_access(void * addr) {
   set_page_data(copysets, addr, 0);
 
   int r = mprotect(addr, PGSIZE, PROT_READ | PROT_WRITE);
+  memcpy(addr, info_msg->pg_contents, PGSIZE);
+  free(info_msg);
 
   if (r < 0) {
     if (DEBUG) printf("[libdsm] error code %d\n", errno);
@@ -140,7 +148,7 @@ void get_read_access(void * addr) {
   msg.type = READ;
   msg.pg_address = addr;
   msg.from = id;
-  send_to_client(0, &msg, sizeof(msg));
+  sendReqPgMsg(&msg, 0);
 
   // TODO wait for manager to respond
 
@@ -165,11 +173,8 @@ void faulthandler(int signum, siginfo_t *info, void *ucontext) {
   }
 }
 
-void * handle_request(void *request) {
-  // TODO actually still process request because this sure is fake.
-  process_read_request( (void*) 0xdeadbeef000, 1);
-  // got something on our port!!
-  return NULL;
+void handle_request(struct RequestPageMessage *msg) {
+  process_read_request(msg->pg_address, msg->from);
 }
 
 /** Will eventually be the thread that handles requests. */
@@ -183,7 +188,7 @@ void * service_thread(void *xa) {
   copysets->do_get_faults = 0;
 
   // open socket
-  sockfd = open_socket(ports[1]); // TODO change this to 'ports[id]'.
+  sockfd = open_serv_socket(ports[id].req_port); 
   
   // let everyone know we're done initializing
   pthread_cond_broadcast(&service_started_cond);
@@ -193,7 +198,12 @@ void * service_thread(void *xa) {
   // TODO: check that it's actually okay to start listening after
   // broadcasting we're done. I think this is fine ... it is if 
   // things will just sit on the socket until we read it.
-  listen_on_socket(sockfd, handle_request);
+  
+  struct RequestPageMessage *msg;
+  while (msg = recvReqPgMsg(sockfd)) {
+    handle_request(msg);
+    free(msg);
+  }
 
   return NULL;
 }
@@ -213,8 +223,9 @@ void start_service_thread(void) {
 }
 
 /** Things that should only happen once. */
-void dsm_init(void) {
+void dsm_init(client_id_t myId) {
   if (dsm_initialized > 0) return;
+  id = myId;
 
   // set up fault handling
   struct sigaction s;
@@ -225,12 +236,18 @@ void dsm_init(void) {
 
   // set up the service thread
   start_service_thread();
+
+  // make the socket for info messages
+  pg_info_fd = open_serv_socket(ports[id].info_port);
 }
 
 /** Opens a new distributed shared memory object. */
 void * dsm_open(void *addr, size_t size) {
   // initialize other dsm-y type things
-  dsm_init();
+  if (!dsm_initialized) {
+    printf("ERROR: dsm_open() called without dsm_init()");
+    exit(1);
+  }
 
   // set up the memory mapping 
   void *result = mmap(addr, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);

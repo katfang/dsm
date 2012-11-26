@@ -39,6 +39,7 @@ void forward_request(struct RequestPageMessage * msg) {
     outmsg.pg_address = msg->pg_address;
     outmsg.copyset = add_to_copyset(0, msg->from);
     memset(outmsg.pg_contents, 0, PGSIZE);
+    printf("sending info msg %p to %d\n", &outmsg, msg->from);
     sendPgInfoMsg(&outmsg, msg->from);
 
   // Owner exists, so we forward the request
@@ -60,11 +61,15 @@ int main(void) {
   owner_table = alloc_data_table();
 
   // open a socket and listen on it.
-  sockfd = open_serv_socket(atoi(ports[0]));
+  sockfd = open_serv_socket(ports[0].req_port);
 
   struct RequestPageMessage *msg;
-  printf("[manager] starting...\n");
+  printf("[manager] starting on port %d...\n", ports[0].req_port);
   while (msg = recvReqPgMsg(sockfd)) {
+    if (DEBUG) {
+      printf("msg address %p\n", msg->pg_address);
+      printf("received msg from %d\n", msg->from);
+    }
     forward_request(msg);
     free(msg);
   }

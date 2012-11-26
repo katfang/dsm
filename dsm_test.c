@@ -1,6 +1,7 @@
 #include "libdsm.h"
 
 int main() {
+  dsm_init(1);
   void *addr = dsm_open((void*) 0xdeadbeef000, (size_t) 4096);
   int i = 0;
   

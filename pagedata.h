@@ -34,6 +34,7 @@ typedef pue_t *pge_t;
 struct DataTable {
   pge_t *table;
   pthread_mutex_t lock;
+  unsigned do_get_faults;
 };
 
 struct DataTable * alloc_data_table();

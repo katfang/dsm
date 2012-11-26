@@ -5,7 +5,7 @@ int main(void) {
   struct RequestPageMessage msg;
   msg.type = READ;
   msg.pg_address = (void *) 0xcafebebe;
-  msg.from = 2;
+  msg.from = 1;
   
   send_to_client(0, &msg, sizeof(msg));
 }

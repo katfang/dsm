@@ -1,4 +1,8 @@
 #include "libdsm.h"
+#include "messages.h"
+#include "pagedata.h"
+#include "sender.h"
+
 #define DEBUG 1
 
 // for handling shared memory
@@ -6,38 +10,61 @@ static int fd;
 
 // for handling the service thread 
 static pthread_t *tha;
-static int service_state = 0; 
+static int service_state = 0;
 
-void process_read_request(void * addr, void * requester) {
-  // TODO: Make sure _I'm_ not a writer.
+static struct DataTable *copysets; // TODO: initialize this, with do_get_faults = 0
+
+static client_id_t id; // TODO: initialize this
+
+void process_read_request(void * addr, client_id_t requester) {
+  // TODO: Handle case when I'm a writer
   int r;
 
-  // Set page perms to NONE
-  r = mprotect(addr, 4096, PROT_READ);
+  // Set page perms to READ
+  r = mprotect(addr, PGSIZE, PROT_READ);
   if (r < 0) {
     if (DEBUG) printf("[libdsm] outside R request: error code %d\n", errno);
   } else {
     if (DEBUG) printf("[libdsm] now only have read on %p.\n", addr);
   }
 
-  // TODO: Add reader to copyset 
+  // Add reader to copyset
+  copyset_t copyset;
+  get_page_data(copysets, addr, &copyset);
+  copyset |= 1 << (requester - 1);
+  put_page_data(copysets, addr, copyset);
 
-  // TODO: Send page
+  // Send page
+  struct PageInfoMessage outmsg;
+  outmsg.type = READ;
+  outmsg.pg_address = addr;
+  outmsg.copyset = copyset;
+  memcpy(outmsg.pg_contents, addr, PGSIZE);
+  send_to_client(requester, &outmsg, sizeof(outmsg));
 }
 
 /** Someone is requesting a write */
-void process_write_request(void * addr, void * requester) {
+void process_write_request(void * addr, client_id_t requester) {
   int r;
 
   // Set page perms to NONE
-  r = mprotect(addr, 4096, PROT_NONE);
+  r = mprotect(addr, PGSIZE, PROT_NONE);
   if (r < 0) {
     if (DEBUG) printf("[libdsm] outside WR request: error code %d\n", errno);
   } else {
     if (DEBUG) printf("[libdsm] gave up all access to %p.\n", addr);
   }
 
-  // TODO: Send page
+  // Send page
+  copyset_t copyset;
+  get_page_data(copysets, addr, &copyset);
+  
+  struct PageInfoMessage outmsg;
+  outmsg.type = WRITE;
+  outmsg.pg_address = addr;
+  outmsg.copyset = copyset;
+  memcpy(outmsg.pg_contents, addr, PGSIZE);
+  send_to_client(requester, &outmsg, sizeof(outmsg));
 }
 
 /** Check if it's a write fault or read fault: returns 1 if write fault*/
@@ -49,7 +76,7 @@ int is_write_fault(int signum, siginfo_t *info, void *ucontext) {
 void get_write_access(void * addr) {
   // TODO: Go to the network
 
-  int r = mprotect(addr, 4096, PROT_READ | PROT_WRITE);
+  int r = mprotect(addr, PGSIZE, PROT_READ | PROT_WRITE);
 
   if (r < 0) {
     if (DEBUG) printf("[libdsm] error code %d\n", errno);
@@ -62,7 +89,7 @@ void get_write_access(void * addr) {
 void get_read_access(void * addr) {
   // TODO: Go to the network
 
-  int r = mprotect(addr, 4096, PROT_READ);
+  int r = mprotect(addr, PGSIZE, PROT_READ);
 
   if (r < 0) {
     if (DEBUG) printf("[libdsm] error code %d\n", errno);
@@ -120,7 +147,7 @@ start_service_thread(void) {
 void * dsm_open(void * addr, size_t size, void * (*loop)(void *)) {
   // set up the shared memory object
   fd = shm_open(SHM_NAME, O_RDWR|O_CREAT|O_EXCL, S_IRWXU);
-  ftruncate(fd, 4096);
+  ftruncate(fd, PGSIZE);
   void *result = mmap(addr, size, PROT_NONE, MAP_PRIVATE, fd, 0);
 
   // set up fault handling

@@ -15,6 +15,7 @@ alloc_data_table()
   tbl->table = malloc(sizeof(pge_t) * TBLENTRIES);
   memset(tbl->table, 0, sizeof(pge_t) * TBLENTRIES);
   pthread_mutex_init(&tbl->lock, NULL);
+  tbl->do_get_faults = 1;
   return tbl;
 }
 
@@ -57,15 +58,20 @@ int
 get_page_data(struct DataTable *tbl, void *va, data_t *id_out)
 {
   pge_t *pge = &(tbl->table)[PGX(va)];
-  if(! *pge) return -E_NO_ENTRY;
+  if(! *pge) goto get_fault;
   
   pue_t *pue = &(*pge)[PUX(va)];
-  if(! *pue) return -E_NO_ENTRY;
+  if(! *pue) goto get_fault;
 
   pme_t *pme = &(*pue)[PMX(va)];
-  if(! *pme) return -E_NO_ENTRY;
+  if(! *pme) goto get_fault;
 
   *id_out = (*pme)[PTX(va)];
   return 0;
   
+ get_fault:
+  if (tbl->do_get_faults)
+    return -E_NO_ENTRY;
+  *id_out = 0;
+  return 0;
 }

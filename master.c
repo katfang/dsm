@@ -35,8 +35,7 @@ void forward_request(struct RequestPageMessage * msg) {
     outmsg.type = WRITE;
     outmsg.pg_address = msg->pg_address;
     outmsg.copyset = 1 << (msg->from - 1);
-    outmsg.pg_size = 0;
-    outmsg.pg_contents; // TODO pass actually page contents which is all 0s?
+    memset(outmsg.pg_contents, 0, PGSIZE);
     send_to_client(msg->from, &outmsg, sizeof(outmsg));
 
   // Owner exists, so we forward the request

@@ -179,11 +179,11 @@ void get_read_access(void * addr) {
 
 /** Just try to make a page writable for now. */
 void faulthandler(int signum, siginfo_t *info, void *ucontext) {
-  if (DEBUG) printf("[libdsm] fault %d handled at address %p!\n", info->si_code, info->si_addr);
-
   if (is_write_fault(signum, info, ucontext)) {
+    if (DEBUG) printf("[libdsm] write fault handled at address %p!\n", info->si_addr);
     get_write_access(info->si_addr);
   } else {
+    if (DEBUG) printf("[libdsm] read fault handled at address %p!\n", info->si_addr);
     get_read_access(info->si_addr);
   }
 }

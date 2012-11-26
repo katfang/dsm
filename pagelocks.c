@@ -49,7 +49,9 @@ page_lock(void *va)
 
   pthread_mutex_t *lock = &(*lme)[PTX(va)]; 
   if (DEBUG) printf("[pagelocks] locking page %p\n", va);
-  return pthread_mutex_lock(lock);
+  int r = pthread_mutex_lock(lock);
+  if (DEBUG) printf("[pagelocks] locked page %p\n", va);
+  return r;
 }
 
 int

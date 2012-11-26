@@ -1,5 +1,3 @@
-#ifndef DSM_SENDER_H
-#define DSM_SENDER_H
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -10,10 +8,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-#include "messages.h"
 
-extern char *ips[];
-extern char *ports[];
+#define MAXBUFLEN 5000
 
-int send_to_client(client_id_t id, void * msg, size_t size);
-#endif
+int open_socket(char * port);
+void listen_on_socket(int sockfd, void* (*handle_request) (void *));

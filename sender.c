@@ -65,13 +65,3 @@ int send_to_client(client_id_t id, void * msg, size_t size) {
 
   return 0;
 }
-
-/* int main(void) {
-  printf("Hello world.\n");
-  struct RequestPageMessage msg;
-  msg.type = READ;
-  msg.pg_address = (void *) 0xcafebebe;
-  msg.from = 2;
-  
-  send_to_client(0, &msg, sizeof(msg));
-} */

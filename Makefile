@@ -4,8 +4,8 @@ all: dsm_test.o manager
 
 test: all test_sender
 
-manager: pagedata.o sender.o copyset.o manager.o 
-	$(CC) pagedata.o sender.o copyset.o manager.o -o manager -lpthread
+manager: pagedata.o sender.o copyset.o server.o manager.o
+	$(CC) pagedata.o sender.o copyset.o server.o manager.o -o manager -lpthread
 
 test_sender: test_sender.c sender.o sender.h messages.h copyset.h
 	$(CC) sender.o test_sender.c -o test_sender
@@ -31,7 +31,10 @@ pagedata.o: pagedata.c pagedata.h
 copyset.o: copyset.c copyset.h
 	$(CC) -c copyset.c
 
-manager.o: manager.c sender.h pagedata.h messages.h copyset.h
+server.o: server.c server.h
+	$(CC) -c server.c
+
+manager.o: manager.c sender.h pagedata.h messages.h copyset.h server.h
 	$(CC) manager.c -c -lpthread
 
 clean:

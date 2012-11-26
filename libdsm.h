@@ -14,4 +14,3 @@
 #define PTE_W 4
 
 void * dsm_open(void * addr, size_t size);
-void dsm_close();

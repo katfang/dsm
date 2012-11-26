@@ -13,7 +13,7 @@ test_sender: test_sender.c sender.o
 	$(CC) sender.o test_sender.c -o test_sender
 
 dsm_test: dsm_test.c server.o libdsm.o sender.o pagelocks.o pagedata.o copyset.o
-	$(CC) dsm_test.c server.o libdsm.o sender.o pagelocks.o pagedata.o copyset.o -o dsm_test -lrt
+	$(CC) dsm_test.c server.o libdsm.o sender.o pagelocks.o pagedata.o copyset.o -o dsm_test -lrt -lpthread
 
 libdsm.o: libdsm.c libdsm.h 
 	$(CC) -fPIC -DPIC -c libdsm.c

@@ -20,7 +20,7 @@ static client_id_t id; // TODO: initialize this
 // for handling the service thread
 pthread_mutex_t service_started_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t service_started_cond = PTHREAD_COND_INITIALIZER;
-static int service_state = 0;
+static int dsm_initialized = 0;
 
 void process_read_request(void * addr, client_id_t requester) {    
   int r;
@@ -92,8 +92,30 @@ void get_write_access(void * addr) {
   if (DEBUG) printf("[libdsm] get_write_access %p\n", addr);
   page_lock(addr);
   
-  // TODO: ask manager for write access to page
-  // TODO: invalidate page's copyset
+  // ask manager for write access to page
+  struct RequestPageMessage msg;
+  msg.type = WRITE;
+  msg.pg_address = addr;
+  msg.from = id;
+  send_to_client(0, &msg, sizeof(msg));
+
+  // TODO somehow wait for response
+  
+  // invalidate page's copyset
+  copyset_t copyset;
+  get_page_data(copysets, addr, &copyset); // or maybe get this from above step.
+
+  while(copyset) {
+    client_id_t reader = lowest_id(copyset);
+    
+    struct RequestPageMessage invalmsg;
+    invalmsg.type = INVAL;
+    invalmsg.pg_address = addr;
+    invalmsg.from = id;
+    send_to_client(reader, &invalmsg, sizeof(invalmsg));
+
+    copyset = remove_from_copyset(copyset, reader);
+  }
   
   // copyset = {}
   set_page_data(copysets, addr, 0);
@@ -113,7 +135,14 @@ void get_read_access(void * addr) {
   if (DEBUG) printf("[libdsm] get_read_access %p\n", addr);
   page_lock(addr);
 
-  // TODO: ask manager for read access to page
+  // ask manager for read access to page
+  struct RequestPageMessage msg;
+  msg.type = READ;
+  msg.pg_address = addr;
+  msg.from = id;
+  send_to_client(0, &msg, sizeof(msg));
+
+  // TODO wait for manager to respond
 
   int r = mprotect(addr, PGSIZE, PROT_READ);
 
@@ -136,36 +165,46 @@ void faulthandler(int signum, siginfo_t *info, void *ucontext) {
   }
 }
 
+void * handle_request(void *request) {
+  // TODO actually still process request because this sure is fake.
+  process_read_request( (void*) 0xdeadbeef000, 1);
+  // got something on our port!!
+  return NULL;
+}
+
 /** Will eventually be the thread that handles requests. */
 void * service_thread(void *xa) {
+  int sockfd;
 
-  unsigned i = 0;
-  pthread_mutex_lock(&service_started_lock);
-  
   // initialization stuff
-  service_state = 1;
+  pthread_mutex_lock(&service_started_lock);
+  dsm_initialized = 1;
   copysets = alloc_data_table();
   copysets->do_get_faults = 0;
+
+  // open socket
+  sockfd = open_socket(ports[1]); // TODO change this to 'ports[id]'.
   
+  // let everyone know we're done initializing
   pthread_cond_broadcast(&service_started_cond);
   pthread_mutex_unlock(&service_started_lock);
 
-  while(1) {
-    // TODO real processing goes here.
-    process_read_request((void*) 0xdeadbeef000, 1);
-  }
+  // actually start listening on the socket.
+  // TODO: check that it's actually okay to start listening after
+  // broadcasting we're done. I think this is fine ... it is if 
+  // things will just sit on the socket until we read it.
+  listen_on_socket(sockfd, handle_request);
+
   return NULL;
 }
 
 /** Just starts the service thread */
 void start_service_thread(void) {
-  if (service_state > 0) return;
-  
   // Create thread or error
   pthread_t tha;
   pthread_mutex_lock(&service_started_lock);
   if (pthread_create(&tha, NULL, service_thread, NULL) == 0) {
-    while(!service_state) pthread_cond_wait(&service_started_cond, &service_started_lock);
+    while(!dsm_initialized) pthread_cond_wait(&service_started_cond, &service_started_lock);
     pthread_mutex_unlock(&service_started_lock);
   } else {
     pthread_mutex_unlock(&service_started_lock);
@@ -173,15 +212,9 @@ void start_service_thread(void) {
   }
 }
 
-
-// TODO: split into dsm_open() for allocating memory, vs. dsm_init() for setting
-// up one-time stuff
-/** Opens a new distributed shared memory object. */
-void * dsm_open(void *addr, size_t size) {
-  // set up the shared memory object
-  fd = shm_open(SHM_NAME, O_RDWR|O_CREAT|O_EXCL, S_IRWXU);
-  ftruncate(fd, PGSIZE);
-  void *result = mmap(addr, size, PROT_NONE, MAP_PRIVATE, fd, 0);
+/** Things that should only happen once. */
+void dsm_init(void) {
+  if (dsm_initialized > 0) return;
 
   // set up fault handling
   struct sigaction s;
@@ -192,13 +225,16 @@ void * dsm_open(void *addr, size_t size) {
 
   // set up the service thread
   start_service_thread();
+}
+
+/** Opens a new distributed shared memory object. */
+void * dsm_open(void *addr, size_t size) {
+  // initialize other dsm-y type things
+  dsm_init();
+
+  // set up the memory mapping 
+  void *result = mmap(addr, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
   // return address
   return result;
-}
-
-/** Close off things when done. */
-void dsm_close() {
-  shm_unlink(SHM_NAME);
-  close(fd);
 }

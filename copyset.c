@@ -13,5 +13,9 @@ client_id_t lowest_id(copyset_t id_set) {
 }
 
 copyset_t add_to_copyset(copyset_t copyset, client_id_t id) {
-  copyset_t result = copyset | (1 << (id - 1));
+  return copyset | (1 << (id - 1));
+}
+
+copyset_t remove_from_copyset(copyset_t copyset, client_id_t id) {
+  return copyset & ~(1 << (id - 1));
 }

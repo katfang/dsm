@@ -8,4 +8,5 @@ typedef uint64_t client_id_t; // given copyset representation, this should proba
 
 client_id_t lowest_id(copyset_t id_set);
 copyset_t add_to_copyset(copyset_t copyset, client_id_t id);
+copyset_t remove_from_copyset(copyset_t copyset, client_id_t id);
 #endif

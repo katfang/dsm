@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/ucontext.h>
 #include <pthread.h>
 
 #define SHM_NAME "/blah"
@@ -13,4 +14,3 @@
 #define PTE_W 4
 
 void * dsm_open(void * addr, size_t size);
-void dsm_close();

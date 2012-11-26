@@ -1,7 +1,9 @@
 CC=gcc
 
+.PHONY: all
 all: dsm_test manager 
 
+.PHONY: test
 test: all test_sender
 
 manager: pagedata.o sender.o copyset.o manager.o 
@@ -34,5 +36,6 @@ copyset.o:
 manager.o: 
 	$(CC) manager.c -c -lpthread
 
+.PHONY: clean
 clean:
 	rm -f *.o *.so dsm_test /dev/shm/blah

@@ -29,7 +29,7 @@ pagedata.o: pagedata.c pagedata.h
 	$(CC) -fPIC -DPIC -c pagedata.c
 
 copyset.o: copyset.c copyset.h
-	$(CC) -c copyset.c
+	$(CC) -fPIC -DPIC -c copyset.c
 
 manager.o: manager.c sender.h pagedata.h messages.h copyset.h
 	$(CC) manager.c -c -lpthread

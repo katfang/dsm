@@ -16,14 +16,15 @@ static int fd;
 static struct DataTable *copysets; // TODO: initialize this, with do_get_faults = 0
 static client_id_t id; // TODO: initialize this
 
-// for handling the service thread 
-static int service_state = 0;
+// for handling the service thread
 pthread_mutex_t service_started_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t service_started_cond = PTHREAD_COND_INITIALIZER;
+static int service_state = 0;
 
 void process_read_request(void * addr, client_id_t requester) {    
   int r;
   page_lock(addr);
-  // TODO: Handle case when I'm a writer
+  // TODO: Handle case when I'm a writer... if it's relevant?
 
   // Set page perms to READ
   r = mprotect(addr, PGSIZE, PROT_READ);
@@ -133,7 +134,11 @@ void faulthandler(int signum, siginfo_t *info, void *ucontext) {
 
 /** Will eventually be the thread that handles requests. */
 void * service_thread(void *xa) {
+
   unsigned i = 0;
+  pthread_mutex_lock(&service_started_lock);
+  service_state = 1;
+  pthread_cond_broadcast(&service_started_cond);
   pthread_mutex_unlock(&service_started_lock);
 
   while(1) {
@@ -151,8 +156,7 @@ void start_service_thread(void) {
   pthread_t tha;
   pthread_mutex_lock(&service_started_lock);
   if (pthread_create(&tha, NULL, service_thread, NULL) == 0) {
-    pthread_mutex_lock(&service_started_lock);
-    service_state = 1;
+    while(!service_state) pthread_cond_wait(&service_started_cond, &service_started_lock);
     pthread_mutex_unlock(&service_started_lock);
   } else {
     pthread_mutex_unlock(&service_started_lock);

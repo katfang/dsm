@@ -10,7 +10,7 @@
 void handler(int signum, siginfo_t *info, void *ucontext) {
   printf("fault handled at address %p!\n", info->si_addr);
   int error = ((ucontext_t *) ucontext)->uc_mcontext.gregs[REG_ERR];
-  // the error code is a bitmap of R,W,P
+  // the error code is a bitmap of W,R,P
   printf("error code is %d\n", error);
   printf("marking page at %p as writable\n", info->si_addr);
   int r;

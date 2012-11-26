@@ -1,9 +1,12 @@
+#define _GNU_SOURCE // this is for accessing fault contexts
 #include "copyset.h"
 #include "libdsm.h"
 #include "messages.h"
 #include "pagedata.h"
 #include "pagelocks.h"
 #include "sender.h"
+#include <signal.h>
+#include <sys/ucontext.h>
 
 #define DEBUG 1
 
@@ -78,7 +81,7 @@ void process_write_request(void * addr, client_id_t requester) {
 
 /** Check if it's a write fault or read fault: returns 1 if write fault*/
 int is_write_fault(int signum, siginfo_t *info, void *ucontext) {
-  return 1;
+    return !!(((ucontext_t *) ucontext)->uc_mcontext.gregs[REG_ERR] & 4);
 }
 
 /** Get write access to a page ... blocks */
@@ -160,6 +163,9 @@ void start_service_thread(void) {
   }
 }
 
+
+// TODO: split into dsm_open() for allocating memory, vs. dsm_init() for setting
+// up one-time stuff
 /** Opens a new distributed shared memory object. */
 void * dsm_open(void *addr, size_t size) {
   // set up the shared memory object

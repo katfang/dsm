@@ -1,6 +1,7 @@
 #ifndef DSM_PAGEDATA_H
 #define DSM_PAGEDATA_H
 
+#include <pthread.h>
 #include <stdint.h>
 
 // We use a 4-level table for these because we're using a 64-bit with 4 KB

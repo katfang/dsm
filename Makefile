@@ -13,20 +13,20 @@ test_sender: test_sender.c sender.o sender.h messages.h copyset.h
 dsm_test.o: dsm_test.c libdsm.so
 	$(CC) dsm_test.c -o dsm_test -L. -ldsm -lrt
 
-libdsm.o: libdsm.c libdsm.h
-	$(CC) -Wall -fPIC -DPIC -c libdsm.c
+libdsm.o: libdsm.c libdsm.h 
+	$(CC) -fPIC -DPIC -c libdsm.c
 
-libdsm.so: libdsm.o
-	ld -shared -o libdsm.so libdsm.o -ldl
+libdsm.so: sender.o pagedata.o libdsm.o
+	ld -shared -o libdsm.so sender.o pagedata.o libdsm.o -ldl
 
 sender.o: sender.c sender.h messages.h copyset.h
-	$(CC) -c sender.c
+	$(CC) -fPIC -DPIC -c sender.c
 
 pagelocks.o: pagelocks.c pagelocks.h
 	$(CC) -c pagelocks.c
 
 pagedata.o: pagedata.c pagedata.h
-	$(CC) -c pagedata.c
+	$(CC) -fPIC -DPIC -c pagedata.c
 
 copyset.o: copyset.c copyset.h
 	$(CC) -c copyset.c

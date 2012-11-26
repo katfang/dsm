@@ -31,7 +31,7 @@ void process_read_request(void * addr, client_id_t requester) {
   copyset_t copyset;
   get_page_data(copysets, addr, &copyset);
   copyset |= 1 << (requester - 1);
-  put_page_data(copysets, addr, copyset);
+  set_page_data(copysets, addr, copyset);
 
   // Send page
   struct PageInfoMessage outmsg;
@@ -116,7 +116,7 @@ void * service_thread(void *xa) {
 
   while(1) {
     // TODO real processing goes here.
-    process_read_request((void*) 0xdeadbeef000, NULL);
+    process_read_request((void*) 0xdeadbeef000, 1);
   }
   return NULL;
 }

@@ -1,7 +1,15 @@
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "libdsm.h"
 
-int main() {
-  dsm_init(1);
+int main(int argc, char* argv[]) {
+  if (argc != 2) {
+    printf("Usage: %s id\n", argv[0]);
+    exit(1);
+  }
+  printf("id is %d\n", atoi(argv[1]));
+  dsm_init(atoi(argv[1]));
   void *addr = dsm_open((void*) 0xdeadbeef000, (size_t) 4096);
   int i = 0;
   

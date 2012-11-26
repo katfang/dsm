@@ -155,6 +155,9 @@ void start_service_thread(void) {
   }
 }
 
+
+// TODO: split into dsm_open() for allocating memory, vs. dsm_init() for setting
+// up one-time stuff
 /** Opens a new distributed shared memory object. */
 void * dsm_open(void *addr, size_t size) {
   // set up the shared memory object

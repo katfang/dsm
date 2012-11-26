@@ -1,4 +1,5 @@
 #define _GNU_SOURCE // this is for accessing fault contexts
+#include <assert.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -106,6 +107,8 @@ void get_write_access(void * addr) {
   sendReqPgMsg(&msg, 0);
 
   struct PageInfoMessage *info_msg = recvPgInfoMsg(pg_info_fd);
+  assert (info_msg->type == WRITE);
+  assert (info_msg->pg_address == addr);  
   
   // invalidate page's copyset
   copyset_t copyset = info_msg->copyset;
@@ -150,14 +153,24 @@ void get_read_access(void * addr) {
   msg.from = id;
   sendReqPgMsg(&msg, 0);
 
-  // TODO wait for manager to respond
+  struct PageInfoMessage *info_msg = recvPgInfoMsg(pg_info_fd);
+  assert (info_msg->type == READ);
+  assert (info_msg->pg_address == addr);
+  set_page_data(copysets, addr, info_msg->copyset);
 
+  int r = mprotect(addr, PGSIZE, PROT_READ | PROT_WRITE);
+  if (r < 0) {
+    if (DEBUG) printf("[libdsm] error code %d\n", errno);
+    
+  memcpy(addr, info_msg->pg_contents, PGSIZE);
+  free(info_msg);
+  
   int r = mprotect(addr, PGSIZE, PROT_READ);
 
   if (r < 0) {
     if (DEBUG) printf("[libdsm] error code %d\n", errno);
   } else {
-    if (DEBUG) printf("[libdsm] marked as writable\n");
+    if (DEBUG) printf("[libdsm] marked as read-only\n");
   }
   page_unlock(addr);
 }
@@ -181,16 +194,13 @@ void handle_request(struct RequestPageMessage *msg) {
 void * service_thread(void *xa) {
   int sockfd;
 
-  // initialization stuff
   pthread_mutex_lock(&service_started_lock);
-  dsm_initialized = 1;
-  copysets = alloc_data_table();
-  copysets->do_get_faults = 0;
 
   // open socket
   sockfd = open_serv_socket(ports[id].req_port); 
   
   // let everyone know we're done initializing
+  dsm_initialized = 1;
   pthread_cond_broadcast(&service_started_cond);
   pthread_mutex_unlock(&service_started_lock);
 
@@ -226,6 +236,9 @@ void start_service_thread(void) {
 void dsm_init(client_id_t myId) {
   if (dsm_initialized > 0) return;
   id = myId;
+  
+  copysets = alloc_data_table();
+  copysets->do_get_faults = 0;
 
   // set up fault handling
   struct sigaction s;

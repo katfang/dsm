@@ -5,8 +5,7 @@
 #include "pagedata.h"
 #include "pagelocks.h"
 #include "sender.h"
-#include <signal.h>
-#include <sys/ucontext.h>
+#include "server.h"
 
 #define DEBUG 1
 
@@ -136,24 +135,36 @@ void faulthandler(int signum, siginfo_t *info, void *ucontext) {
   }
 }
 
+void * handle_request(void *request) {
+  // TODO actually still process request because this sure is fake.
+  process_read_request( (void*) 0xdeadbeef000, 1);
+  // got something on our port!!
+  return NULL;
+}
+
 /** Will eventually be the thread that handles requests. */
 void * service_thread(void *xa) {
+  int sockfd;
 
-  unsigned i = 0;
-  pthread_mutex_lock(&service_started_lock);
-  
   // initialization stuff
+  pthread_mutex_lock(&service_started_lock);
   service_state = 1;
   copysets = alloc_data_table();
   copysets->do_get_faults = 0;
+
+  // open socket
+  sockfd = open_socket(ports[1]); // TODO change this to 'id'.
   
+  // let everyone know we're done initializing
   pthread_cond_broadcast(&service_started_cond);
   pthread_mutex_unlock(&service_started_lock);
 
-  while(1) {
-    // TODO real processing goes here.
-    process_read_request((void*) 0xdeadbeef000, 1);
-  }
+  // actually start listening on the socket.
+  // TODO: check that it's actually okay to start listening after
+  // broadcasting we're done. I think this is fine ... it is if 
+  // things will just sit on the socket until we read it.
+  listen_on_socket(sockfd, handle_request);
+
   return NULL;
 }
 

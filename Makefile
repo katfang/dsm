@@ -12,14 +12,14 @@ manager: pagedata.o sender.o copyset.o server.o manager.o
 test_sender: test_sender.c sender.o
 	$(CC) sender.o test_sender.c -o test_sender
 
-dsm_test: dsm_test.c libdsm.o sender.o pagelocks.o pagedata.o copyset.o
-	$(CC) dsm_test.c libdsm.o sender.o pagelocks.o pagedata.o copyset.o -o dsm_test -lrt
+dsm_test: dsm_test.c server.o libdsm.o sender.o pagelocks.o pagedata.o copyset.o
+	$(CC) dsm_test.c server.o libdsm.o sender.o pagelocks.o pagedata.o copyset.o -o dsm_test -lrt
 
 libdsm.o: libdsm.c libdsm.h 
 	$(CC) -fPIC -DPIC -c libdsm.c
 
-libdsm.so: sender.o pagedata.o libdsm.o pagelocks.o copyset.o
-	ld -shared -o libdsm.so sender.o pagedata.o pagelocks.o copyset.o libdsm.o -ldl
+libdsm.so: server.o sender.o pagedata.o libdsm.o pagelocks.o copyset.o
+	ld -shared -o libdsm.so server.o sender.o pagedata.o pagelocks.o copyset.o libdsm.o -ldl
 
 sender.o: sender.c sender.h
 	$(CC) -fPIC -DPIC -c sender.c
@@ -33,8 +33,8 @@ pagedata.o:
 copyset.o: 
 	$(CC) -fPIC -DPIC -c copyset.c
 
-server.o: 
-	$(CC) -c server.c -lpthread
+server.o: server.c server.h
+	$(CC) -fPIC -DPIC -c server.c -lpthread
 
 manager.o: 
 	$(CC) manager.c -c -lpthread

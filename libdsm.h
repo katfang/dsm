@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/ucontext.h>
 #include <pthread.h>
 
 #define SHM_NAME "/blah"

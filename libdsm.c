@@ -63,16 +63,10 @@ void process_read_request(void * addr, client_id_t requester) {
 void process_write_request(void * addr, client_id_t requester) {
   int r;
   if (DEBUG) printf("[libdsm] process_write_request %p\n", addr);
-  page_lock(addr); 
-  // Set page perms to NONE
-  r = mprotect(addr, PGSIZE, PROT_NONE);
-  if (r < 0) {
-    if (DEBUG) printf("[libdsm] outside WR request: error code %d\n", errno);
-  } else {
-    if (DEBUG) printf("[libdsm] gave up all access to %p.\n", addr);
-  }
+  page_lock(addr);
+  if (DEBUG) printf("[libdsm] p_w_r locked\n");  
 
-  // Send page
+  // put together message
   copyset_t copyset;
   get_page_data(copysets, addr, &copyset);
   
@@ -81,6 +75,16 @@ void process_write_request(void * addr, client_id_t requester) {
   outmsg.pg_address = addr;
   outmsg.copyset = copyset;
   memcpy(outmsg.pg_contents, addr, PGSIZE);
+  
+  // Set page perms to NONE
+  r = mprotect(addr, PGSIZE, PROT_NONE);
+  if (r < 0) {
+    if (DEBUG) printf("[libdsm] outside WR request: error code %d\n", errno);
+  } else {
+    if (DEBUG) printf("[libdsm] gave up all access to %p.\n", addr);
+  }
+
+  // send page
   sendPgInfoMsg(&outmsg, requester);
   
   page_unlock(addr);
@@ -97,6 +101,7 @@ int is_write_fault(int signum, siginfo_t *info, void *ucontext) {
 void get_write_access(void * addr) {
   if (DEBUG) printf("[libdsm] get_write_access %p\n", addr);
   page_lock(addr);
+  if (DEBUG) printf("[libdsm] g_w_a locked\n");
   
   // ask manager for write access to page
   struct RequestPageMessage msg;

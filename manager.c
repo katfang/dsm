@@ -37,7 +37,7 @@ void forward_request(struct RequestPageMessage * msg) {
     struct PageInfoMessage outmsg;
     outmsg.type = WRITE;
     outmsg.pg_address = msg->pg_address;
-    outmsg.copyset = add_to_copyset(0, msg->from);
+    outmsg.copyset = 0;
     memset(outmsg.pg_contents, 0, PGSIZE);
     if (DEBUG) printf("[manager] sending info msg %p to %" PRIu64 "\n", &outmsg, msg->from);
     sendPgInfoMsg(&outmsg, msg->from);

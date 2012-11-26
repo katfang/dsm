@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+#include <sys/ucontext.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -7,6 +9,9 @@
 
 void handler(int signum, siginfo_t *info, void *ucontext) {
   printf("fault handled at address %p!\n", info->si_addr);
+  int error = ((ucontext_t *) ucontext)->uc_mcontext.gregs[REG_ERR];
+  // the error code is a bitmap of R,W,P
+  printf("error code is %d\n", error);
   printf("marking page at %p as writable\n", info->si_addr);
   int r;
   r = mprotect(info->si_addr, 4096, PROT_READ | PROT_WRITE);
@@ -24,7 +29,7 @@ int main() {
   // POSIX-portable approch, but in Linux you can modify any mapped page.
   int fd = shm_open("/blah", O_RDWR|O_CREAT|O_EXCL, S_IRWXU);
   ftruncate(fd, 4096);
-  void *addr = mmap((void*)0xdeadbeef000, 4096, PROT_READ, MAP_PRIVATE, fd, 0);
+  void *addr = mmap((void*)0xdeadbeef000, 4096, PROT_NONE, MAP_PRIVATE, fd, 0);
   printf("mapped new read-only page at %p\n", addr);
 
   // sigsegv handler initialization

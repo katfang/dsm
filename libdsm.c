@@ -195,6 +195,7 @@ void handle_request(struct RequestPageMessage *msg) {
     process_write_request(msg->pg_address, msg->from);
   case INVAL:
     // TODO: invalidate the page
+    ;
   }
 }
 

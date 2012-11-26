@@ -23,7 +23,7 @@ struct DataTable *owner_table;
 
 void forward_request(struct RequestPageMessage * msg) {
   client_id_t pg_owner;
-  if (DEBUG) printf("[master] type: %d address %p from %" PRIu64 "\n", 
+  if (DEBUG) printf("[manager] type: %d address %p from %" PRIu64 "\n", 
     msg->type, msg->pg_address, (uint64_t) msg->from);
 
   pthread_mutex_lock(&manager_lock);
@@ -88,13 +88,13 @@ int main(void) {
   
   for (p = servinfo; p != NULL; p = p->ai_next) {
     if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
-      perror("[master] socket");
+      perror("[manager] socket");
       continue;
     }
 
     if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
       close(sockfd);
-      perror("[master] bind");
+      perror("[manager] bind");
       continue;
     }
 
@@ -102,7 +102,7 @@ int main(void) {
   }
 
 	if (p == NULL) {
-		fprintf(stderr, "[master] failed to bind socket\n");
+		fprintf(stderr, "[manager] failed to bind socket\n");
 		return 2;
 	}
 
@@ -111,16 +111,16 @@ int main(void) {
   owner_table = alloc_data_table();
 
   while (1) {	
-		if (DEBUG) printf("[master] waiting to receive...\n");
+		if (DEBUG) printf("[manager] waiting to receive...\n");
 
 		addr_len = sizeof sender_addr;
 		if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN-1 , 0,
 			(struct sockaddr *)&sender_addr, &addr_len)) == -1) {
-			perror("[master] failed to recvfrom");
+			perror("[manager] failed to recvfrom");
 			exit(1);
 		}
 
-		if (DEBUG) printf("[master] got packet from %s %d\n",
+		if (DEBUG) printf("[manager] got packet from %s %d\n",
 			inet_ntop(sender_addr.ss_family,
 				get_in_addr((struct sockaddr *)&sender_addr),
 				s, sizeof s), *(int*) (get_in_addr((struct sockaddr *)&sender_addr)));
@@ -131,6 +131,6 @@ int main(void) {
 
 	close(sockfd);
 
-  printf("[master] ending...\n");
+  printf("[manager] ending...\n");
   return 0; 
 }

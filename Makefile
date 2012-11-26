@@ -1,11 +1,11 @@
 CC=gcc
 
-all: dsm_test.o master 
+all: dsm_test.o manager 
 
 test: all test_sender
 
-master: pagedata.o sender.o copyset.o master.o 
-	$(CC) pagedata.o sender.o copyset.o master.o -o master -lpthread
+manager: pagedata.o sender.o copyset.o manager.o 
+	$(CC) pagedata.o sender.o copyset.o manager.o -o manager -lpthread
 
 test_sender: test_sender.c sender.o sender.h messages.h copyset.h
 	$(CC) sender.o test_sender.c -o test_sender
@@ -31,8 +31,8 @@ pagedata.o: pagedata.c pagedata.h
 copyset.o: copyset.c copyset.h
 	$(CC) -c copyset.c
 
-master.o: master.c sender.h pagedata.h messages.h copyset.h
-	$(CC) master.c -c -lpthread
+manager.o: manager.c sender.h pagedata.h messages.h copyset.h
+	$(CC) manager.c -c -lpthread
 
 clean:
 	rm -f *.o *.so dsm_test /dev/shm/blah

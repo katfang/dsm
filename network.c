@@ -126,7 +126,7 @@ static void sendMsg(client_id_t id, char *msg, int port, int length) {
 }
 /* returns something negative on failure. */
 int sendReqPgMsg(struct RequestPageMessage *msg, client_id_t id) {
-  printf("sending message of size %d from %d\n", sizeof(struct RequestPageMessage), msg->from);
+  printf("sending message of size " PRIu64 " from " PRIu64 "\n", sizeof(struct RequestPageMessage), msg->from);
   sendMsg(id, (char*) msg, ports[id].req_port, sizeof(struct RequestPageMessage));
 }
 

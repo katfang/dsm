@@ -39,7 +39,7 @@ void forward_request(struct RequestPageMessage * msg) {
     outmsg.pg_address = msg->pg_address;
     outmsg.copyset = add_to_copyset(0, msg->from);
     memset(outmsg.pg_contents, 0, PGSIZE);
-    printf("sending info msg %p to %d\n", &outmsg, msg->from);
+    printf("sending info msg %p to " PRIu64 "\n", &outmsg, msg->from);
     sendPgInfoMsg(&outmsg, msg->from);
 
   // Owner exists, so we forward the request
@@ -68,7 +68,7 @@ int main(void) {
   while (msg = recvReqPgMsg(sockfd)) {
     if (DEBUG) {
       printf("msg address %p\n", msg->pg_address);
-      printf("received msg from %d\n", msg->from);
+      printf("received msg from " PRIu64 "\n", msg->from);
     }
     forward_request(msg);
     free(msg);

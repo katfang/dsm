@@ -103,7 +103,7 @@ void get_write_access(void * addr) {
   msg.type = WRITE;
   msg.pg_address = addr;
   msg.from = id;
-  if (DEBUG) printf("setting msg.from to %d\n", msg.from);
+  if (DEBUG) printf("[libdsm] setting msg.from to " PRIu64 "\n", msg.from);
   sendReqPgMsg(&msg, 0);
 
   struct PageInfoMessage *info_msg = recvPgInfoMsg(pg_info_fd);

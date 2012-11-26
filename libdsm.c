@@ -93,7 +93,22 @@ void get_write_access(void * addr) {
   page_lock(addr);
   
   // TODO: ask manager for write access to page
-  // TODO: invalidate page's copyset
+  
+  // invalidate page's copyset
+  copyset_t copyset;
+  get_page_data(copysets, addr, &copyset); // or maybe get this from above step.
+
+  while(copyset) {
+    client_id_t reader = lowest_id(copyset);
+    
+    struct RequestPageMessage invalmsg;
+    invalmsg.type = INVAL;
+    invalmsg.pg_address = addr;
+    invalmsg.from = id;
+    send_to_client(reader, &invalmsg, sizeof(invalmsg));
+
+    copyset = remove_from_copyset(copyset, reader);
+  }
   
   // copyset = {}
   set_page_data(copysets, addr, 0);

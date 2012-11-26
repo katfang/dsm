@@ -6,7 +6,8 @@
 
 enum msg_t {
     READ,
-    WRITE
+    WRITE,
+    INVAL // used with RequestPageMessage only
 };
 
 #pragma pack(push)

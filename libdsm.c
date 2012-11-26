@@ -83,7 +83,8 @@ void process_write_request(void * addr, client_id_t requester) {
 
 /** Check if it's a write fault or read fault: returns 1 if write fault*/
 int is_write_fault(int signum, siginfo_t *info, void *ucontext) {
-    return !!(((ucontext_t *) ucontext)->uc_mcontext.gregs[REG_ERR] & 4);
+    // !! normalizes to 0 or 1
+    return !!(((ucontext_t *) ucontext)->uc_mcontext.gregs[REG_ERR] & PTE_W); 
 }
 
 /** Get write access to a page ... blocks */

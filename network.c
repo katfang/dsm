@@ -33,7 +33,7 @@ void error(const char *msg)
 
 /* connects to a client and returns a socket file descriptor */
 int open_socket(char *host, int port) {
-  printf("Connecting to %s:%d\n", host, port);
+  if (DEBUG) printf("[network] Connecting to %s:%d\n", host, port);
   int sockfd;
   struct sockaddr_in sock_addr;
   struct hostent *host_info;
@@ -126,7 +126,7 @@ static void sendMsg(client_id_t id, char *msg, int port, int length) {
 }
 /* returns something negative on failure. */
 int sendReqPgMsg(struct RequestPageMessage *msg, client_id_t id) {
-  printf("sending message of size " PRIu64 " from " PRIu64 "\n", sizeof(struct RequestPageMessage), msg->from);
+  if (DEBUG) printf("[network] sending message of size %" PRIu64 " from %" PRIu64 "\n", sizeof(struct RequestPageMessage), msg->from);
   sendMsg(id, (char*) msg, ports[id].req_port, sizeof(struct RequestPageMessage));
 }
 

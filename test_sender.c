@@ -1,5 +1,5 @@
 #include "messages.h" 
-#include "sender.h" 
+#include "network.h" 
 
 int main(void) {
   struct RequestPageMessage msg;
@@ -7,5 +7,5 @@ int main(void) {
   msg.pg_address = (void *) 0xcafebebe;
   msg.from = 1;
   
-  send_to_client(0, &msg, sizeof(msg));
+  sendReqPgMsg(&msg, 0); 
 }

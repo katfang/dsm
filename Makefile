@@ -1,6 +1,6 @@
 CC=gcc
 
-all: dsm_test.o master.o
+all: dsm_test.o master test_sender
 
 master: pagedata.o sender.o master.o 
 	$(CC) pagedata.o sender.o master.o -o master -lpthread

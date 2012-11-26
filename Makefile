@@ -1,6 +1,6 @@
 CC=gcc
 
-all: dsm_test.o manager 
+all: dsm_test manager 
 
 test: all test_sender
 
@@ -10,7 +10,7 @@ manager: pagedata.o sender.o copyset.o manager.o
 test_sender: test_sender.c sender.o sender.h messages.h copyset.h
 	$(CC) sender.o test_sender.c -o test_sender
 
-dsm_test.o: dsm_test.c libdsm.so
+dsm_test: dsm_test.c libdsm.so
 	$(CC) dsm_test.c -o dsm_test -L. -ldsm -lrt
 
 libdsm.o: libdsm.c libdsm.h 

@@ -40,7 +40,7 @@ int send_to_client(client_id_t id, void * msg, size_t size) {
   for(p = servinfo; p != NULL; p = p->ai_next) {
     if ((sockfd = socket(p->ai_family, p->ai_socktype,
           p->ai_protocol)) == -1) {
-      perror("talker: socket");
+      perror("[sender] socket");
       continue;
     }
     break;
@@ -59,7 +59,7 @@ int send_to_client(client_id_t id, void * msg, size_t size) {
 
   freeaddrinfo(servinfo);
 
-  printf("talker: sent %d bytes to (%s:%s)\n", numbytes, 
+  printf("[sender] sent %d bytes to (%s:%s)\n", numbytes, 
     ips[id], ports[id]);
   close(sockfd);
 

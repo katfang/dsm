@@ -5,6 +5,9 @@ all: dsm_test.o master.o
 master: pagedata.o sender.o master.o 
 	$(CC) pagedata.o sender.o master.o -o master -lpthread
 
+test_sender: test_sender.c sender.o sender.h messages.h
+	$(CC) sender.o test_sender.c -o test_sender
+
 dsm_test.o: dsm_test.c libdsm.so
 	$(CC) dsm_test.c -o dsm_test -L. -ldsm -lrt
 

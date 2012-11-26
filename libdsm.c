@@ -8,13 +8,12 @@
 // for handling shared memory
 static int fd;
 
-// for handling the service thread 
-static pthread_t *tha;
-static int service_state = 0;
-
 static struct DataTable *copysets; // TODO: initialize this, with do_get_faults = 0
-
 static client_id_t id; // TODO: initialize this
+
+// for handling the service thread 
+static int service_state = 0;
+pthread_mutex_t service_started_lock = PTHREAD_MUTEX_INITIALIZER;
 
 void process_read_request(void * addr, client_id_t requester) {
   // TODO: Handle case when I'm a writer
@@ -67,6 +66,7 @@ void process_write_request(void * addr, client_id_t requester) {
   send_to_client(requester, &outmsg, sizeof(outmsg));
 }
 
+
 /** Check if it's a write fault or read fault: returns 1 if write fault*/
 int is_write_fault(int signum, siginfo_t *info, void *ucontext) {
   return 1;
@@ -110,41 +110,36 @@ void faulthandler(int signum, siginfo_t *info, void *ucontext) {
 }
 
 /** Will eventually be the thread that handles requests. */
-static void * 
-service_thread(void *xa) {
-  // Do set up and release lock so that other thread can continue
-  if (DEBUG) printf("[libdsm] Service thread started...\n");
+void * service_thread(void *xa) {
+  unsigned i = 0;
+  pthread_mutex_unlock(&service_started_lock);
 
-  // === START HACKS
-  unsigned i;
-  for (i = 0; i < 5; i++) {
-    printf("Hello world.\n\n");
-    if (i % 5 == 2) process_write_request((void*) 0xdeadbeef000, NULL);
-    if (i % 5 == 3) process_read_request((void*) 0xdeadbeef000, NULL);
-    pthread_yield();
+  while(1) {
+    // TODO real processing goes here.
+    process_read_request((void*) 0xdeadbeef000, NULL);
   }
-  // === END HACKS  
-
-  // Ended service thread?!
-  if (DEBUG) printf("[libdsm] Service thread is done...\n");
   return NULL;
 }
 
 /** Just starts the service thread */
-static void
-start_service_thread(void) {
+void start_service_thread(void) {
   if (service_state > 0) return;
   
   // Create thread or error
-  if (pthread_create(&tha[0], NULL, service_thread, NULL) == 0) {
+  pthread_t tha;
+  pthread_mutex_lock(&service_started_lock);
+  if (pthread_create(&tha, NULL, service_thread, NULL) == 0) {
+    pthread_mutex_lock(&service_started_lock);
     service_state = 1;
+    pthread_mutex_unlock(&service_started_lock);
   } else {
+    pthread_mutex_unlock(&service_started_lock);
     if (DEBUG) printf("[libdsm] Error starting service thread.\n");
   }
 }
 
 /** Opens a new distributed shared memory object. */
-void * dsm_open(void * addr, size_t size, void * (*loop)(void *)) {
+void * dsm_open(void *addr, size_t size) {
   // set up the shared memory object
   fd = shm_open(SHM_NAME, O_RDWR|O_CREAT|O_EXCL, S_IRWXU);
   ftruncate(fd, PGSIZE);
@@ -157,17 +152,10 @@ void * dsm_open(void * addr, size_t size, void * (*loop)(void *)) {
   s.sa_flags = SA_SIGINFO;
   sigaction(SIGSEGV, &s, NULL);
 
-  // start the service thread
-  tha = malloc(sizeof(pthread_t) * 2);
+  // set up the service thread
   start_service_thread();
-  pthread_create(&tha[1], NULL, loop, NULL);
-  
-  unsigned i;
-  void *value;
-  for(i = 0; i < 2; i++) {
-    pthread_join(tha[i], &value);
-  }
 
+  // return address
   return result;
 }
 

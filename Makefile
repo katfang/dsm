@@ -1,11 +1,13 @@
 CC=gcc
 
-all: dsm_test.o master.o
+all: dsm_test.o master 
 
-master: pagedata.o sender.o master.o 
-	$(CC) pagedata.o sender.o master.o -o master -lpthread
+test: all test_sender
 
-test_sender: test_sender.c sender.o sender.h messages.h
+master: pagedata.o sender.o copyset.o master.o 
+	$(CC) pagedata.o sender.o copyset.o master.o -o master -lpthread
+
+test_sender: test_sender.c sender.o sender.h messages.h copyset.h
 	$(CC) sender.o test_sender.c -o test_sender
 
 dsm_test.o: dsm_test.c libdsm.so
@@ -17,7 +19,7 @@ libdsm.o: libdsm.c libdsm.h
 libdsm.so: libdsm.o
 	ld -shared -o libdsm.so libdsm.o -ldl
 
-sender.o: sender.c sender.h messages.h
+sender.o: sender.c sender.h messages.h copyset.h
 	$(CC) -c sender.c
 
 pagelocks.o: pagelocks.c pagelocks.h
@@ -26,7 +28,10 @@ pagelocks.o: pagelocks.c pagelocks.h
 pagedata.o: pagedata.c pagedata.h
 	$(CC) -c pagedata.c
 
-master.o: master.c sender.h pagedata.h messages.h
+copyset.o: copyset.c copyset.h
+	$(CC) -c copyset.c
+
+master.o: master.c sender.h pagedata.h messages.h copyset.h
 	$(CC) master.c -c -lpthread
 
 clean:

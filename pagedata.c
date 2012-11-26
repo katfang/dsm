@@ -23,7 +23,6 @@ set_page_data(struct DataTable *tbl, void *va, data_t id)
 {
   int i;
 
-  if (DEBUG) printf("set_page_data at %p\n", va);
   pge_t *pge = &(tbl->table)[PGX(va)];
   if(! *pge) {
     pthread_mutex_lock(&tbl->lock);
@@ -48,7 +47,7 @@ set_page_data(struct DataTable *tbl, void *va, data_t id)
     pthread_mutex_unlock(&tbl->lock);
   }
 
-  if (DEBUG) printf("Setting data of %p to %" PRIu64 "\n", va, id);
+  if (DEBUG) printf("[pagedata] set_page_data of %p to %" PRIu64 "\n", va, id);
   (*pme)[PTX(va)] = id;
 
   return 0;

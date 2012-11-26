@@ -48,7 +48,7 @@ page_lock(void *va)
   }
 
   pthread_mutex_t *lock = &(*lme)[PTX(va)]; 
-  if (DEBUG) printf("Locking page %p\n", va);
+  if (DEBUG) printf("[pagelocks] locking page %p\n", va);
   return pthread_mutex_lock(lock);
 }
 
@@ -65,7 +65,7 @@ page_unlock(void *va)
   if(! *lme) return -E_NO_ENTRY;
 
   pthread_mutex_t *lock = &(*lme)[PTX(va)];
-  if (DEBUG) printf("Unlocking page %p\n", va);
+  if (DEBUG) printf("[pagelocks] unlocking page %p\n", va);
   return pthread_mutex_unlock(lock);
   
 }

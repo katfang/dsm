@@ -11,6 +11,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <pthread.h>
+#include "copyset.h"
 #include "messages.h"
 #include "sender.h"
 #include "pagedata.h"
@@ -34,7 +35,7 @@ void forward_request(struct RequestPageMessage * msg) {
     struct PageInfoMessage outmsg;
     outmsg.type = WRITE;
     outmsg.pg_address = msg->pg_address;
-    outmsg.copyset = 1 << (msg->from - 1);
+    outmsg.copyset = add_to_copyset(0, msg->from);
     outmsg.pg_size = 0;
     outmsg.pg_contents; // TODO pass actually page contents which is all 0s?
     send_to_client(msg->from, &outmsg, sizeof(outmsg));

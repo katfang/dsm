@@ -161,6 +161,7 @@ void get_read_access(void * addr) {
   int r = mprotect(addr, PGSIZE, PROT_READ | PROT_WRITE);
   if (r < 0) {
     if (DEBUG) printf("[libdsm] error code %d\n", errno);
+  }
     
   memcpy(addr, info_msg->pg_contents, PGSIZE);
   free(info_msg);
@@ -187,7 +188,14 @@ void faulthandler(int signum, siginfo_t *info, void *ucontext) {
 }
 
 void handle_request(struct RequestPageMessage *msg) {
-  process_read_request(msg->pg_address, msg->from);
+  switch (msg->type) {
+  case READ:
+    process_read_request(msg->pg_address, msg->from);
+  case WRITE:
+    process_write_request(msg->pg_address, msg->from);
+  case INVAL:
+    // TODO: invalidate the page
+  }
 }
 
 /** Will eventually be the thread that handles requests. */

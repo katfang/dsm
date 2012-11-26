@@ -1,7 +1,7 @@
 CC=gcc
 
-dsm_objects = libdsm.o sender.o pagelocks.o pagedata.o copyset.o
-manager_objects = pagedata.o sender.o copyset.o network.o manager.o
+dsm_objects = libdsm.o network.o pagelocks.o pagedata.o copyset.o
+manager_objects = pagedata.o copyset.o network.o manager.o
 
 .PHONY: all
 all: dsm_test manager 

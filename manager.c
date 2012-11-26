@@ -1,21 +1,22 @@
 #define __STDC_FORMAT_MACROS
+
+#include <arpa/inet.h>
+#include <errno.h>
 #include <inttypes.h> 
+#include <netdb.h>
+#include <netinet/in.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <errno.h>
 #include <string.h>
-#include <sys/types.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <pthread.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 #include "copyset.h"
 #include "messages.h"
-#include "sender.h"
-#include "pagedata.h"
 #include "network.h"
+#include "pagedata.h"
 
 #define DEBUG 1
 
@@ -38,7 +39,7 @@ void forward_request(struct RequestPageMessage * msg) {
     outmsg.pg_address = msg->pg_address;
     outmsg.copyset = add_to_copyset(0, msg->from);
     memset(outmsg.pg_contents, 0, PGSIZE);
-    send_to_client(msg->from, &outmsg, sizeof(outmsg));
+    sendPgInfoMsg(&outmsg, msg->from);
 
   // Owner exists, so we forward the request
   // Set page's new owner if incorrect.
@@ -46,7 +47,7 @@ void forward_request(struct RequestPageMessage * msg) {
     if (msg->type == WRITE) {
       set_page_data(owner_table, msg->pg_address, msg->from);
     }
-    send_to_client(pg_owner, msg, sizeof(*msg));
+    sendReqPgMsg(msg, pg_owner);
   }
 
   pthread_mutex_unlock(&manager_lock);
@@ -59,9 +60,10 @@ int main(void) {
   owner_table = alloc_data_table();
 
   // open a socket and listen on it.
-  sockfd = open_socket(atoi(ports[0]));
+  sockfd = open_serv_socket(atoi(ports[0]));
 
   struct RequestPageMessage *msg;
+  printf("[manager] starting...\n");
   while (msg = recvReqPgMsg(sockfd)) {
     forward_request(msg);
     free(msg);

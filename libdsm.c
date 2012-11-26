@@ -2,10 +2,11 @@
 #include "copyset.h"
 #include "libdsm.h"
 #include "messages.h"
+#include "network.h"
 #include "pagedata.h"
 #include "pagelocks.h"
-#include "sender.h"
 #include <signal.h>
+#include <string.h>
 #include <sys/ucontext.h>
 
 #define DEBUG 1
@@ -47,7 +48,7 @@ void process_read_request(void * addr, client_id_t requester) {
   outmsg.pg_address = addr;
   outmsg.copyset = copyset;
   memcpy(outmsg.pg_contents, addr, PGSIZE);
-  send_to_client(requester, &outmsg, sizeof(outmsg));
+  sendPgInfoMsg(&outmsg, requester);
   
   page_unlock(addr);
 }
@@ -56,8 +57,7 @@ void process_read_request(void * addr, client_id_t requester) {
 void process_write_request(void * addr, client_id_t requester) {
   int r;
   if (DEBUG) printf("[libdsm] process_write_request %p\n", addr);
-  page_lock(addr);
-  
+  page_lock(addr); 
   // Set page perms to NONE
   r = mprotect(addr, PGSIZE, PROT_NONE);
   if (r < 0) {
@@ -75,7 +75,7 @@ void process_write_request(void * addr, client_id_t requester) {
   outmsg.pg_address = addr;
   outmsg.copyset = copyset;
   memcpy(outmsg.pg_contents, addr, PGSIZE);
-  send_to_client(requester, &outmsg, sizeof(outmsg));
+  sendPgInfoMsg(&outmsg, requester);
   
   page_unlock(addr);
 }

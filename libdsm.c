@@ -166,7 +166,7 @@ void get_read_access(void * addr) {
   memcpy(addr, info_msg->pg_contents, PGSIZE);
   free(info_msg);
   
-  int r = mprotect(addr, PGSIZE, PROT_READ);
+  r = mprotect(addr, PGSIZE, PROT_READ);
 
   if (r < 0) {
     if (DEBUG) printf("[libdsm] error code %d\n", errno);

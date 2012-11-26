@@ -1,7 +1,12 @@
+#define _GNU_SOURCE // this is for accessing fault contexts
+#include "copyset.h"
 #include "libdsm.h"
 #include "messages.h"
 #include "pagedata.h"
+#include "pagelocks.h"
 #include "sender.h"
+#include <signal.h>
+#include <sys/ucontext.h>
 
 #define DEBUG 1
 
@@ -11,13 +16,15 @@ static int fd;
 static struct DataTable *copysets; // TODO: initialize this, with do_get_faults = 0
 static client_id_t id; // TODO: initialize this
 
-// for handling the service thread 
-static int service_state = 0;
+// for handling the service thread
 pthread_mutex_t service_started_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t service_started_cond = PTHREAD_COND_INITIALIZER;
+static int service_state = 0;
 
-void process_read_request(void * addr, client_id_t requester) {
-  // TODO: Handle case when I'm a writer
+void process_read_request(void * addr, client_id_t requester) {    
   int r;
+  page_lock(addr);
+  // TODO: Handle case when I'm a writer... if it's relevant?
 
   // Set page perms to READ
   r = mprotect(addr, PGSIZE, PROT_READ);
@@ -30,7 +37,7 @@ void process_read_request(void * addr, client_id_t requester) {
   // Add reader to copyset
   copyset_t copyset;
   get_page_data(copysets, addr, &copyset);
-  copyset |= 1 << (requester - 1);
+  copyset = add_to_copyset(copyset, requester);
   set_page_data(copysets, addr, copyset);
 
   // Send page
@@ -40,12 +47,15 @@ void process_read_request(void * addr, client_id_t requester) {
   outmsg.copyset = copyset;
   memcpy(outmsg.pg_contents, addr, PGSIZE);
   send_to_client(requester, &outmsg, sizeof(outmsg));
+  
+  page_unlock(addr);
 }
 
 /** Someone is requesting a write */
 void process_write_request(void * addr, client_id_t requester) {
   int r;
-
+  page_lock(addr);
+  
   // Set page perms to NONE
   r = mprotect(addr, PGSIZE, PROT_NONE);
   if (r < 0) {
@@ -64,17 +74,25 @@ void process_write_request(void * addr, client_id_t requester) {
   outmsg.copyset = copyset;
   memcpy(outmsg.pg_contents, addr, PGSIZE);
   send_to_client(requester, &outmsg, sizeof(outmsg));
+  
+  page_unlock(addr);
 }
 
 
 /** Check if it's a write fault or read fault: returns 1 if write fault*/
 int is_write_fault(int signum, siginfo_t *info, void *ucontext) {
-  return 1;
+    return !!(((ucontext_t *) ucontext)->uc_mcontext.gregs[REG_ERR] & 4);
 }
 
 /** Get write access to a page ... blocks */
 void get_write_access(void * addr) {
-  // TODO: Go to the network
+  page_lock(addr);
+  
+  // TODO: ask manager for write access to page
+  // TODO: invalidate page's copyset
+  
+  // copyset = {}
+  set_page_data(copysets, addr, 0);
 
   int r = mprotect(addr, PGSIZE, PROT_READ | PROT_WRITE);
 
@@ -83,11 +101,14 @@ void get_write_access(void * addr) {
   } else {
     if (DEBUG) printf("[libdsm] marked as writable\n");
   }
+  page_unlock(addr);
 }
 
 /** Get read access to a page ... blocks */
 void get_read_access(void * addr) {
-  // TODO: Go to the network
+  page_lock(addr);
+
+  // TODO: ask manager for read access to page
 
   int r = mprotect(addr, PGSIZE, PROT_READ);
 
@@ -96,6 +117,7 @@ void get_read_access(void * addr) {
   } else {
     if (DEBUG) printf("[libdsm] marked as writable\n");
   }
+  page_unlock(addr);
 }
 
 /** Just try to make a page writable for now. */
@@ -111,7 +133,11 @@ void faulthandler(int signum, siginfo_t *info, void *ucontext) {
 
 /** Will eventually be the thread that handles requests. */
 void * service_thread(void *xa) {
+
   unsigned i = 0;
+  pthread_mutex_lock(&service_started_lock);
+  service_state = 1;
+  pthread_cond_broadcast(&service_started_cond);
   pthread_mutex_unlock(&service_started_lock);
 
   while(1) {
@@ -129,8 +155,7 @@ void start_service_thread(void) {
   pthread_t tha;
   pthread_mutex_lock(&service_started_lock);
   if (pthread_create(&tha, NULL, service_thread, NULL) == 0) {
-    pthread_mutex_lock(&service_started_lock);
-    service_state = 1;
+    while(!service_state) pthread_cond_wait(&service_started_cond, &service_started_lock);
     pthread_mutex_unlock(&service_started_lock);
   } else {
     pthread_mutex_unlock(&service_started_lock);
@@ -138,6 +163,9 @@ void start_service_thread(void) {
   }
 }
 
+
+// TODO: split into dsm_open() for allocating memory, vs. dsm_init() for setting
+// up one-time stuff
 /** Opens a new distributed shared memory object. */
 void * dsm_open(void *addr, size_t size) {
   // set up the shared memory object

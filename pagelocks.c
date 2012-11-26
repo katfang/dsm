@@ -69,8 +69,3 @@ page_unlock(void *va)
   return pthread_mutex_unlock(lock);
   
 }
-
-int main() {
-  page_lock((void *)0xdeadbeef);
-  page_unlock((void *)0xdeadbeef);
-}

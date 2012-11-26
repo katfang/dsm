@@ -1,8 +1,25 @@
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h> 
+#include "sender.h"
+
 /*
  * sender.c -- has the functions to send things
  */
 
-#include "sender.h"
+char *ips[] = {
+  "127.0.0.1", // actually server
+  "127.0.0.1",
+  "127.0.0.1",
+  "127.0.0.1",
+};
+
+char *ports[] = {
+  "14000", // actually server
+  "14001",
+  "14002",
+  "14003",
+};
+
 
 int send_to_client(client_id_t id, void * msg, size_t size) {
   int sockfd;
@@ -42,14 +59,14 @@ int send_to_client(client_id_t id, void * msg, size_t size) {
 
   freeaddrinfo(servinfo);
 
-  printf("talker: sent %d bytes to %d (%s:%s)\n", numbytes, 
-    id, ips[id], ports[id]);
+  printf("talker: sent %d bytes to (%s:%s)\n", numbytes, 
+    ips[id], ports[id]);
   close(sockfd);
 
   return 0;
 }
 
-int main(void) {
+/* int main(void) {
   printf("Hello world.\n");
   struct RequestPageMessage msg;
   msg.type = READ;
@@ -57,4 +74,4 @@ int main(void) {
   msg.from = 2;
   
   send_to_client(0, &msg, sizeof(msg));
-}
+} */

@@ -1,3 +1,5 @@
+#ifndef DSM_SENDER_H
+#define DSM_SENDER_H
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -12,18 +14,8 @@
 
 #define MAXBUFLEN 700
 
-char *ips[] = {
-  "127.0.0.1", // actually server
-  "127.0.0.1",
-  "127.0.0.1",
-  "127.0.0.1",
-};
-
-char *ports[] = {
-  "14000", // actually server
-  "14001",
-  "14002",
-  "14003",
-};
+extern char *ips[];
+extern char *ports[];
 
 int send_to_client(client_id_t id, void * msg, size_t size);
+#endif

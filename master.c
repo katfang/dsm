@@ -1,3 +1,5 @@
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h> 
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -11,17 +13,43 @@
 #include <pthread.h>
 #include "messages.h"
 #include "sender.h"
+#include "pagedata.h"
+
+pthread_mutex_t manager_lock = PTHREAD_MUTEX_INITIALIZER;
+struct DataTable *owner_table;
 
 void forward_request(struct RequestPageMessage * msg) {
-  unsigned pg_owner;
-  // TODO look up owner
+  client_id_t pg_owner;
+  printf("[master] type: %d address %p from %" PRIu64 "\n", msg->type, msg->pg_address, (uint64_t) msg->from);
 
-  printf("[master] type: %d address %p from %d\n", msg->type, msg->pg_address, msg->from);
-  
-  // send_to_client(pg_owner, msg, sizeof(*msg));
+  pthread_mutex_lock(&manager_lock);
+
+  // Master is owner -- respond to original dude with an empty page
+  if (get_page_data(owner_table, msg->pg_address, &pg_owner) < 0) {
+    set_page_data(owner_table, msg->pg_address, msg->from);
+
+    struct PageInfoMessage outmsg;
+    outmsg.type = WRITE;
+    outmsg.pg_address = msg->pg_address;
+    outmsg.copyset = 1 << (msg->from - 1);
+    outmsg.pg_size = 0;
+    outmsg.pg_contents; // TODO pass actually page contents which is all 0s?
+    send_to_client(msg->from, &outmsg, sizeof(outmsg));
+
+  // Owner exists, so we forward the request
+  // Set page's new owner if incorrect.
+  } else {
+    if (msg->type == WRITE) {
+      set_page_data(owner_table, msg->pg_address, msg->from);
+    }
+    send_to_client(pg_owner, msg, sizeof(*msg));
+  }
+
+  pthread_mutex_unlock(&manager_lock);
 }
 
 void * handle_request(void *xa) {
+  struct RequestPageMessage *msg = (struct RequestPageMessage *) xa;
   forward_request( (struct RequestPageMessage *) xa);
   return NULL;
 }
@@ -77,8 +105,9 @@ int main(void) {
 
 	freeaddrinfo(servinfo);
 
-	unsigned i = 0;
-	for (i = 0; i < 10; i++) {
+  owner_table = alloc_data_table();
+
+  while (1) {	
 		printf("[master] waiting to receive...\n");
 
 		addr_len = sizeof sender_addr;

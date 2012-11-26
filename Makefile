@@ -16,8 +16,8 @@ dsm_test.o: dsm_test.c libdsm.so
 libdsm.o: libdsm.c libdsm.h 
 	$(CC) -fPIC -DPIC -c libdsm.c
 
-libdsm.so: sender.o pagedata.o libdsm.o pagelocks.o
-	ld -shared -o libdsm.so sender.o pagedata.o pagelocks.o libdsm.o -ldl
+libdsm.so: sender.o pagedata.o libdsm.o pagelocks.o copyset.o
+	ld -shared -o libdsm.so sender.o pagedata.o pagelocks.o copyset.o libdsm.o -ldl
 
 sender.o: sender.c sender.h messages.h copyset.h
 	$(CC) -fPIC -DPIC -c sender.c

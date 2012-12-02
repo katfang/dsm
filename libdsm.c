@@ -173,7 +173,6 @@ void get_read_access(void * addr) {
   }
     
   memcpy(addr, info_msg->pg_contents, PGSIZE);
-  free(info_msg);
   
   if (info_msg->type == READ) {
     r = mprotect(addr, PGSIZE, PROT_READ);
@@ -190,10 +189,12 @@ void get_read_access(void * addr) {
       if (DEBUG) printf("[libdsm] marked as read-write\n");
     }
   } else {
-    printf("[libdsm] unknown message type!\n");
+    printf("[libdsm] unknown message type %d!\n", info_msg->type);
+    printf("[libdsm] however, address is %p\n", info_msg->pg_address);
     exit(1);
   }
 
+  free(info_msg);
   page_unlock(addr);
 }
 

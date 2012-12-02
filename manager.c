@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "debug.h"
 #include "copyset.h"
 #include "messages.h"
 #include "network.h"

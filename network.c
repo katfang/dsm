@@ -122,6 +122,7 @@ static void sendMsg(client_id_t id, char *msg, int port, int length) {
   if (toWrite) {
     error("Couldn't fully write message");
   }
+  printf("[network] Wrote message to %d\n", id);
   close(sockfd);
 }
 /* returns something negative on failure. */

@@ -218,11 +218,14 @@ void handle_request(struct RequestPageMessage *msg) {
   switch (msg->type) {
   case READ:
     process_read_request(msg->pg_address, msg->from);
+    break;
   case WRITE:
     process_write_request(msg->pg_address, msg->from);
+    break;
   case INVAL:
     if (DEBUG) printf("[libdsm] invalidating page %p\n", msg->pg_address);
     mprotect(msg->pg_address, PGSIZE, PROT_NONE);
+    break;
   }
 }
 

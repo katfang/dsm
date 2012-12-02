@@ -46,6 +46,7 @@ void process_read_request(void * addr, client_id_t requester) {
   copyset_t copyset;
   get_page_data(copysets, addr, &copyset);
   copyset = add_to_copyset(copyset, requester);
+  copyset = add_to_copyset(copyset, id); // NOTE really only necessary if was a writer before
   set_page_data(copysets, addr, copyset);
 
   // Send page

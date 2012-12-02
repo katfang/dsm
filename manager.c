@@ -6,6 +6,7 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,6 +23,17 @@
 
 pthread_mutex_t manager_lock = PTHREAD_MUTEX_INITIALIZER;
 struct DataTable *owner_table;
+int sockfd = -1;
+
+void interruptHandler(int signum) {
+  if (signum == SIGINT) {
+    if (sockfd != -1)
+      close(sockfd);
+    signal(SIGINT, SIG_DFL);
+    kill(getpid(), SIGINT);
+  }
+}
+
 
 void forward_request(struct RequestPageMessage * msg) {
   client_id_t pg_owner;
@@ -55,10 +67,11 @@ void forward_request(struct RequestPageMessage * msg) {
 }
 
 int main(void) {
-  int sockfd;
 
   // start the table to keep track of who's the owner
   owner_table = alloc_data_table();
+
+  signal(SIGINT, interruptHandler);
 
   // open a socket and listen on it.
   sockfd = open_serv_socket(ports[0].req_port);

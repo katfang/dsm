@@ -25,4 +25,4 @@ dsm_test: dsm_test.c libdsm.h network.h pagelocks.h pagedata.h copyset.h  $(dsm_
 
 .PHONY: clean
 clean:
-	rm -f *.o dsm_test manager /dev/shm/blah
+	rm -f *.o dsm_test dsm_read_test faulthandler manager /dev/shm/blah

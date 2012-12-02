@@ -39,7 +39,7 @@ int main() {
   s.sa_flags = SA_SIGINFO;
 
   sigaction(SIGSEGV, &s, NULL);
-  printf("value at %p is 0x%x.\nTrying to write 0xcafebabe\n", addr, ((int*)addr)[0]);
+//  printf("value at %p is 0x%x.\nTrying to write 0xcafebabe\n", addr, ((int*)addr)[0]);
   ((int*)addr)[0]=0xcafebabe;
   printf("value at %p is 0x%x.\nExiting\n", addr, ((int*)addr)[0]);
   shm_unlink("/blah");

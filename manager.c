@@ -15,6 +15,7 @@
 #include <unistd.h>
 
 #include "copyset.h"
+#include "debug.h"
 #include "messages.h"
 #include "network.h"
 #include "pagedata.h"

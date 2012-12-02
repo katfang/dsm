@@ -27,8 +27,10 @@ int sockfd = -1;
 
 void interruptHandler(int signum) {
   if (signum == SIGINT) {
-    if (sockfd != -1)
+    if (sockfd != -1) {
+      printf("[manager] Closing sockfd\n");
       close(sockfd);
+    }
     signal(SIGINT, SIG_DFL);
     kill(getpid(), SIGINT);
   }

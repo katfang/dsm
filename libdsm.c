@@ -94,7 +94,7 @@ void process_write_request(void * addr, client_id_t requester) {
 /** Check if it's a write fault or read fault: returns 1 if write fault */
 int is_write_fault(int signum, siginfo_t *info, void *ucontext) {
     // !! normalizes to 0 or 1
-    printf("fault error code is %d\n",((ucontext_t *) ucontext)->uc_mcontext.gregs[REG_ERR]);
+    printf("fault error code is %ld\n",((ucontext_t *) ucontext)->uc_mcontext.gregs[REG_ERR]);
     return !!(((ucontext_t *) ucontext)->uc_mcontext.gregs[REG_ERR] & PTE_W); 
 }
 
@@ -177,15 +177,23 @@ void get_read_access(void * addr) {
   
   if (info_msg->type == READ) {
     r = mprotect(addr, PGSIZE, PROT_READ);
-  } else {
+    if (r < 0) {
+      if (DEBUG) printf("[libdsm] error code %d\n", errno);
+    } else {
+      if (DEBUG) printf("[libdsm] marked as read-only\n");
+    }
+  } else if (info_msg->type == WRITE) {
     r = mprotect(addr, PGSIZE, PROT_READ | PROT_WRITE);
+    if (r < 0) {
+      if (DEBUG) printf("[libdsm] error code %d\n", errno);
+    } else {
+      if (DEBUG) printf("[libdsm] marked as read-write\n");
+    }
+  } else {
+    printf("[libdsm] unknown message type!\n");
+    exit(1);
   }
 
-  if (r < 0) {
-    if (DEBUG) printf("[libdsm] error code %d\n", errno);
-  } else {
-    if (DEBUG) printf("[libdsm] marked as read-only\n");
-  }
   page_unlock(addr);
 }
 

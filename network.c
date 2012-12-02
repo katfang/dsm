@@ -114,12 +114,14 @@ static void sendMsg(client_id_t id, char *msg, int port, int length) {
   int n;
   while (n = write(sockfd, msg, toWrite)) {
     if (n < 0) {
+      close(sockfd);
       error("ERROR on write()");
     }
     toWrite -= n;
     msg += n;
   }
   if (toWrite) {
+    close(sockfd);
     error("Couldn't fully write message");
   }
   printf("[network] Wrote message to %d\n", id);

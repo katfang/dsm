@@ -126,7 +126,7 @@ void get_write_access(void * addr) {
   while(copyset) {
     client_id_t reader = lowest_id(copyset);
 
-    if (DEBUG) printf("[libdsm] sending INVAL of page %p to " PRIu64 "\n", addr, reader);
+    DEBUG_LOG("sending INVAL of page %p to " PRIu64, addr, reader);
     struct RequestPageMessage invalmsg;
     invalmsg.type = INVAL;
     invalmsg.pg_address = addr;
@@ -144,16 +144,16 @@ void get_write_access(void * addr) {
   free(info_msg);
 
   if (r < 0) {
-    if (DEBUG) printf("[libdsm] error code %d\n", errno);
+    DEBUG_LOG("error code %d", errno);
   } else {
-    if (DEBUG) printf("[libdsm] marked as writable\n");
+    DEBUG_LOG("marked as writable");
   }
   page_unlock(addr);
 }
 
 /** Get read access to a page ... blocks */
 void get_read_access(void * addr) {
-  if (DEBUG) printf("[libdsm] get_read_access %p\n", addr);
+  DEBUG_LOG("get_read_access %p", addr);
   page_lock(addr);
 
   // ask manager for read access to page
@@ -173,7 +173,10 @@ void get_read_access(void * addr) {
 
   int r = mprotect(addr, PGSIZE, PROT_READ | PROT_WRITE);
   if (r < 0) {
-    if (DEBUG) printf("[libdsm] error code %d\n", errno);
+    DEBUG_LOG("could not mark as read-writable. error code %d", errno);
+    exit(1);
+  } else {
+    DEBUG_LOG("successfully marked read-writable\n");
   }
     
   memcpy(addr, info_msg->pg_contents, PGSIZE);
@@ -181,20 +184,20 @@ void get_read_access(void * addr) {
   if (info_msg->type == READ) {
     r = mprotect(addr, PGSIZE, PROT_READ);
     if (r < 0) {
-      if (DEBUG) printf("[libdsm] error code %d\n", errno);
+      DEBUG_LOG("error code %d", errno);
     } else {
-      if (DEBUG) printf("[libdsm] marked as read-only\n");
+      DEBUG_LOG("marked as read-only");
     }
   } else if (info_msg->type == WRITE) {
     r = mprotect(addr, PGSIZE, PROT_READ | PROT_WRITE);
     if (r < 0) {
-      if (DEBUG) printf("[libdsm] error code %d\n", errno);
+      DEBUG_LOG("error code %d", errno);
     } else {
-      if (DEBUG) printf("[libdsm] marked as read-write\n");
+      DEBUG_LOG("marked as read-write");
     }
   } else {
-    printf("[libdsm] unknown message type %d!\n", info_msg->type);
-    printf("[libdsm] however, address is %p\n", info_msg->pg_address);
+    DEBUG_LOG("unknown message type %d!", info_msg->type);
+    DEBUG_LOG("however, address is %p", info_msg->pg_address);
     exit(1);
   }
 
@@ -206,10 +209,10 @@ void get_read_access(void * addr) {
 void faulthandler(int signum, siginfo_t *info, void *ucontext) {
   void * addr = ((uintptr_t) info->si_addr) & ~0xFFF;
   if (is_write_fault(signum, info, ucontext)) {
-    if (DEBUG) printf("[libdsm] write fault handled at address %p!\n", addr);
+    DEBUG_LOG("write fault handled at address %p!", addr);
     get_write_access(addr);
   } else {
-    if (DEBUG) printf("[libdsm] read fault handled at address %p!\n", addr);
+    DEBUG_LOG("read fault handled at address %p!", addr);
     get_read_access(addr);
   }
 }
@@ -223,7 +226,7 @@ void handle_request(struct RequestPageMessage *msg) {
     process_write_request(msg->pg_address, msg->from);
     break;
   case INVAL:
-    if (DEBUG) printf("[libdsm] invalidating page %p\n", msg->pg_address);
+    DEBUG_LOG("invalidating page %p", msg->pg_address);
     mprotect(msg->pg_address, PGSIZE, PROT_NONE);
     break;
   }
@@ -267,7 +270,7 @@ void start_service_thread(void) {
     pthread_mutex_unlock(&service_started_lock);
   } else {
     pthread_mutex_unlock(&service_started_lock);
-    if (DEBUG) printf("[libdsm] Error starting service thread.\n");
+    DEBUG_LOG("Error starting service thread.");
   }
 }
 
@@ -297,7 +300,7 @@ void dsm_init(client_id_t myId) {
 void * dsm_open(void *addr, size_t size) {
   // initialize other dsm-y type things
   if (!dsm_initialized) {
-    printf("ERROR: dsm_open() called without dsm_init()");
+    DEBUG_LOG("ERROR: dsm_open() called without dsm_init()");
     exit(1);
   }
 

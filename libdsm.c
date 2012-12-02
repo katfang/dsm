@@ -6,6 +6,7 @@
 #include <string.h>
 #include <sys/ucontext.h>
 
+#include "debug.h"
 #include "copyset.h"
 #include "libdsm.h"
 #include "messages.h"
@@ -30,16 +31,16 @@ static int dsm_initialized = 0;
 
 void process_read_request(void * addr, client_id_t requester) {    
   int r;
-  if (DEBUG) printf("[libdsm] process_read_request %p\n", addr);
+  DEBUG_LOG("process_read_request %p", addr);
   page_lock(addr);
   // TODO: Handle case when I'm a writer... if it's relevant?
 
   // Set page perms to READ
   r = mprotect(addr, PGSIZE, PROT_READ);
   if (r < 0) {
-    if (DEBUG) printf("[libdsm] outside R request: error code %d\n", errno);
+    DEBUG_LOG("outside R request: error code %d", errno);
   } else {
-    if (DEBUG) printf("[libdsm] now only have read on %p.\n", addr);
+    DEBUG_LOG("now only have read on %p.", addr);
   }
 
   // Add reader to copyset
@@ -63,9 +64,9 @@ void process_read_request(void * addr, client_id_t requester) {
 /** Someone is requesting a write */
 void process_write_request(void * addr, client_id_t requester) {
   int r;
-  if (DEBUG) printf("[libdsm] process_write_request %p\n", addr);
+  DEBUG_LOG("process_write_request %p", addr);
   page_lock(addr);
-  if (DEBUG) printf("[libdsm] p_w_r locked\n");  
+  DEBUG_LOG("p_w_r locked");  
 
   // put together message
   copyset_t copyset;
@@ -80,12 +81,13 @@ void process_write_request(void * addr, client_id_t requester) {
   // Set page perms to NONE
   r = mprotect(addr, PGSIZE, PROT_NONE);
   if (r < 0) {
-    if (DEBUG) printf("[libdsm] outside WR request: error code %d\n", errno);
+    DEBUG_LOG("outside WR request: error code %d", errno);
   } else {
-    if (DEBUG) printf("[libdsm] gave up all access to %p.\n", addr);
+    DEBUG_LOG("gave up all access to %p.", addr);
   }
 
   // send page
+  DEBUG_LOG("sending page info message to %ld", requester);
   sendPgInfoMsg(&outmsg, requester);
   
   page_unlock(addr);
@@ -95,22 +97,22 @@ void process_write_request(void * addr, client_id_t requester) {
 /** Check if it's a write fault or read fault: returns 1 if write fault */
 int is_write_fault(int signum, siginfo_t *info, void *ucontext) {
     // !! normalizes to 0 or 1
-    printf("fault error code is %ld\n",((ucontext_t *) ucontext)->uc_mcontext.gregs[REG_ERR]);
+    DEBUG_LOG("fault error code is %ld",((ucontext_t *) ucontext)->uc_mcontext.gregs[REG_ERR]);
     return !!(((ucontext_t *) ucontext)->uc_mcontext.gregs[REG_ERR] & PTE_W); 
 }
 
 /** Get write access to a page ... blocks */
 void get_write_access(void * addr) {
-  if (DEBUG) printf("[libdsm] get_write_access %p\n", addr);
+  DEBUG_LOG("get_write_access %p", addr);
   page_lock(addr);
-  if (DEBUG) printf("[libdsm] g_w_a locked\n");
+  DEBUG_LOG("g_w_a locked");
   
   // ask manager for write access to page
   struct RequestPageMessage msg;
   msg.type = WRITE;
   msg.pg_address = addr;
   msg.from = id;
-  if (DEBUG) printf("[libdsm] setting msg.from to %" PRIu64 "\n", msg.from);
+  DEBUG_LOG("setting msg.from to %" PRIu64, msg.from);
   sendReqPgMsg(&msg, 0);
 
   struct PageInfoMessage *info_msg = recvPgInfoMsg(pg_info_fd);
@@ -159,6 +161,7 @@ void get_read_access(void * addr) {
   msg.type = READ;
   msg.pg_address = addr;
   msg.from = id;
+  
   sendReqPgMsg(&msg, 0);
 
   struct PageInfoMessage *info_msg = recvPgInfoMsg(pg_info_fd);

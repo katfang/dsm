@@ -7,9 +7,10 @@
 #include <netinet/in.h>
 
 #include "copyset.h"
+#include "debug.h"
 #include "messages.h"
 #include "network.h"
-#define DEBUG 1
+#define DEBUG 0
 
 char *ips[] = {
   "127.0.0.1", // actually manager
@@ -33,7 +34,7 @@ void error(const char *msg)
 
 /* connects to a client and returns a socket file descriptor */
 int open_socket(char *host, int port) {
-  if (DEBUG) printf("[network] Connecting to %s:%d\n", host, port);
+  DEBUG_LOG("Connecting to %s:%d", host, port);
   int sockfd;
   struct sockaddr_in sock_addr;
   struct hostent *host_info;
@@ -124,12 +125,12 @@ static void sendMsg(client_id_t id, char *msg, int port, int length) {
     close(sockfd);
     error("Couldn't fully write message");
   }
-  printf("[network] Wrote message to %d\n", id);
+  DEBUG_LOG("Wrote message to %d", id);
   close(sockfd);
 }
 /* returns something negative on failure. */
 int sendReqPgMsg(struct RequestPageMessage *msg, client_id_t id) {
-  if (DEBUG) printf("[network] sending message of size %" PRIu64 " from %" PRIu64 "\n", sizeof(struct RequestPageMessage), msg->from);
+  DEBUG_LOG("sending message of size %" PRIu64 " from %" PRIu64, sizeof(struct RequestPageMessage), msg->from);
   sendMsg(id, (char*) msg, ports[id].req_port, sizeof(struct RequestPageMessage));
 }
 

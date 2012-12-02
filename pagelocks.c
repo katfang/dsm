@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "debug.h"
 #include "pagedata.h"
 
 #define DEBUG 1
@@ -48,9 +49,10 @@ page_lock(void *va)
   }
 
   pthread_mutex_t *lock = &(*lme)[PTX(va)]; 
-  if (DEBUG) printf("[pagelocks] locking page %p from thread #%ld\n", va, (long)pthread_self());
+//  if (DEBUG) printf("[pagelocks] locking page %p from thread #%ld\n", va, (long)pthread_self());
+  DEBUG_LOG("locking page %p from thread #%ld", va, (long)pthread_self());
   int r = pthread_mutex_lock(lock);
-  if (DEBUG) printf("[pagelocks] locked page %p\n from thread #%ld\n", va, (long)pthread_self());
+  DEBUG_LOG("locked page %p\n from thread #%ld", va, (long)pthread_self());
   return r;
 }
 

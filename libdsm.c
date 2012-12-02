@@ -161,7 +161,9 @@ void get_read_access(void * addr) {
   sendReqPgMsg(&msg, 0);
 
   struct PageInfoMessage *info_msg = recvPgInfoMsg(pg_info_fd);
-  assert (info_msg->type == READ);
+  // this assertion is not valid, because on the first read of a page, the
+  // master actually gives write permissions.
+//  assert (info_msg->type == READ);
   assert (info_msg->pg_address == addr);
   set_page_data(copysets, addr, info_msg->copyset);
 

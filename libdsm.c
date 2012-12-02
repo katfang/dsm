@@ -173,7 +173,10 @@ void get_read_access(void * addr) {
 
   int r = mprotect(addr, PGSIZE, PROT_READ | PROT_WRITE);
   if (r < 0) {
-    DEBUG_LOG("error code %d", errno);
+    DEBUG_LOG("could not mark as read-writable. error code %d", errno);
+    exit(1);
+  } else {
+    DEBUG_LOG("successfully marked read-writable\n");
   }
     
   memcpy(addr, info_msg->pg_contents, PGSIZE);

@@ -28,7 +28,7 @@ int sockfd = -1;
 void interruptHandler(int signum) {
   if (signum == SIGINT) {
     if (sockfd != -1) {
-      printf("[manager] Closing sockfd\n");
+      DEBUG_LOG("Closing sockfd");
       close(sockfd);
     }
     signal(SIGINT, SIG_DFL);
@@ -39,14 +39,14 @@ void interruptHandler(int signum) {
 
 void forward_request(struct RequestPageMessage * msg) {
   client_id_t pg_owner;
-  if (DEBUG) printf("[manager] type: %d address %p from %" PRIu64 "\n", 
+  DEBUG_LOG("type: %d address %p from %" PRIu64 "", 
     msg->type, msg->pg_address, (uint64_t) msg->from);
 
   pthread_mutex_lock(&manager_lock);
   
   // Master is owner -- respond to original dude with an empty page
   if (get_page_data(owner_table, msg->pg_address, &pg_owner) < 0) {
-    printf("[manager] received initial page request from %ld\n", msg->from);
+    DEBUG_LOG("received initial page request from %ld", msg->from);
     set_page_data(owner_table, msg->pg_address, msg->from);
 
     struct PageInfoMessage outmsg;
@@ -54,18 +54,18 @@ void forward_request(struct RequestPageMessage * msg) {
     outmsg.pg_address = msg->pg_address;
     outmsg.copyset = 0;
     memset(outmsg.pg_contents, 0, PGSIZE);
-    printf("outmsg.type is %d\n", outmsg.type);
-    if (DEBUG) printf("[manager] sending info msg %p to %" PRIu64 "\n", &outmsg, msg->from);
+    DEBUG_LOG("outmsg.type is %d", outmsg.type);
+    DEBUG_LOG("sending info msg %p to %" PRIu64 "", &outmsg, msg->from);
     sendPgInfoMsg(&outmsg, msg->from);
 
   // Owner exists, so we forward the request
   // Set page's new owner if incorrect.
   } else {
     if (msg->type == WRITE) {
-      printf("[manager] received write request from %ld\n", msg->from);
+      DEBUG_LOG("received write request from %ld", msg->from);
       set_page_data(owner_table, msg->pg_address, msg->from);
     } else {
-      printf("[manager] received read request from %ld\n", msg->from);
+      DEBUG_LOG("received read request from %ld", msg->from);
     }
     sendReqPgMsg(msg, pg_owner);
   }
@@ -84,17 +84,13 @@ int main(void) {
   sockfd = open_serv_socket(ports[0].req_port);
 
   struct RequestPageMessage *msg;
-  printf("[manager] starting on port %d...\n", ports[0].req_port);
+  DEBUG_LOG("starting on port %d...", ports[0].req_port);
 
   while (msg = recvReqPgMsg(sockfd)) {
-    if (DEBUG) {
-      printf("[manager] msg address %p\n", msg->pg_address);
-      printf("[manager] received msg from %" PRIu64 "\n", msg->from);
-    }
     forward_request(msg);
     free(msg);
   }
 
-  printf("[manager] ending...\n");
+  DEBUG_LOG("ending...");
   return 0; 
 }

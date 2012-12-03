@@ -67,7 +67,7 @@ void process_write_request(void * addr, client_id_t requester) {
   DEBUG_LOG("process_write_request %p", addr);
   if (requester != id) {
     page_lock(addr);
-    DEBUG_LOG("p_w_r locked");  
+    DEBUG_LOG("process_write_request locked");  
   }
 
   // put together message
@@ -109,7 +109,7 @@ int is_write_fault(int signum, siginfo_t *info, void *ucontext) {
 void get_write_access(void * addr) {
   DEBUG_LOG("get_write_access %p", addr);
   page_lock(addr);
-  DEBUG_LOG("g_w_a locked");
+  DEBUG_LOG("get_write_access locked");
   
   // ask manager for write access to page
   struct RequestPageMessage msg;

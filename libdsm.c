@@ -210,7 +210,7 @@ void get_read_access(void * addr) {
 
 /** Just try to make a page writable for now. */
 void faulthandler(int signum, siginfo_t *info, void *ucontext) {
-  void * addr = ((uintptr_t) info->si_addr) & ~0xFFF;
+  void * addr = (void*) (((uintptr_t) info->si_addr) & ~0xFFF);
   if (is_write_fault(signum, info, ucontext)) {
     DEBUG_LOG("write fault handled at address %p!", addr);
     get_write_access(addr);

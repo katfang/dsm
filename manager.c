@@ -44,7 +44,7 @@ void forward_request(struct RequestPageMessage * msg) {
   
   // Master is owner -- respond to original dude with an empty page
   if (get_page_data(owner_table, msg->pg_address, &pg_owner) < 0) {
-    DEBUG_LOG("received initial page request from %ld", msg->from);
+    DEBUG_LOG("received \e[32minitial\e[0m page request from %ld", msg->from);
     set_page_data(owner_table, msg->pg_address, msg->from);
 
     struct PageInfoMessage outmsg;
@@ -60,10 +60,10 @@ void forward_request(struct RequestPageMessage * msg) {
   // Set page's new owner if incorrect.
   } else {
     if (msg->type == WRITE) {
-      DEBUG_LOG("received write request from %ld", msg->from);
+      DEBUG_LOG("received \e[33mwrite\e[0m request from %ld", msg->from);
       set_page_data(owner_table, msg->pg_address, msg->from);
     } else {
-      DEBUG_LOG("received read request from %ld", msg->from);
+      DEBUG_LOG("received \e[31mread\e[0m request from %ld", msg->from);
     }
     DEBUG_LOG("forwarding msg to %" PRIu64, pg_owner);
     sendReqPgMsg(msg, pg_owner);

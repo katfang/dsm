@@ -2,5 +2,5 @@
 
 #define DEBUG_LOG(fmt, ...) do { \
   if(DEBUG) \
-    fprintf(stderr, "%s:%d: " fmt "\n", __FILE__, __LINE__, ## __VA_ARGS__); \
+    fprintf(stderr, "[%s:%d] " fmt "\n", __FILE__, __LINE__, ## __VA_ARGS__); \
   } while(0)

@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "debug.h"
 #include "pagedata.h"
 
 #define DEBUG 1
@@ -48,7 +49,7 @@ set_page_data(struct DataTable *tbl, void *va, data_t id)
     pthread_mutex_unlock(&tbl->lock);
   }
 
-  if (DEBUG) printf("[pagedata] set_page_data of %p to %" PRIu64 "\n", va, id);
+  DEBUG_LOG("set_page_data of %p from %lu to %lu", va, (*pme)[PTX(va)], id);
   (*pme)[PTX(va)] = id;
 
   return 0;

@@ -65,8 +65,10 @@ void process_read_request(void * addr, client_id_t requester) {
 void process_write_request(void * addr, client_id_t requester) {
   int r;
   DEBUG_LOG("process_write_request %p", addr);
-  page_lock(addr);
-  DEBUG_LOG("p_w_r locked");  
+  if (requester != id) {
+    page_lock(addr);
+    DEBUG_LOG("p_w_r locked");  
+  }
 
   // put together message
   copyset_t copyset;
@@ -90,7 +92,9 @@ void process_write_request(void * addr, client_id_t requester) {
   DEBUG_LOG("sending page info message to %ld", requester);
   sendPgInfoMsg(&outmsg, requester);
   
-  page_unlock(addr);
+  if (requester != id) {
+    page_unlock(addr);
+  }
 }
 
 

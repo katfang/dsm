@@ -40,7 +40,7 @@ void process_read_request(void * addr, client_id_t requester) {
   if (r < 0) {
     DEBUG_LOG("outside R request: error code %d", errno);
   } else {
-    DEBUG_LOG("now only have read on %p.", addr);
+    DEBUG_LOG("marked %p as read-only.", addr);
   }
 
   // Add reader to copyset
@@ -116,7 +116,6 @@ void get_write_access(void * addr) {
   msg.type = WRITE;
   msg.pg_address = addr;
   msg.from = id;
-  DEBUG_LOG("setting msg.from to %" PRIu64, msg.from);
   sendReqPgMsg(&msg, 0);
 
   struct PageInfoMessage *info_msg = recvPgInfoMsg(pg_info_fd);
@@ -180,7 +179,7 @@ void get_read_access(void * addr) {
     DEBUG_LOG("could not mark as read-writable. error code %d", errno);
     exit(1);
   } else {
-    DEBUG_LOG("successfully marked read-writable\n");
+    DEBUG_LOG("successfully marked read-writable (temp to copy page contents)");
   }
     
   memcpy(addr, info_msg->pg_contents, PGSIZE);

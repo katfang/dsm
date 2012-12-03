@@ -40,9 +40,6 @@ void interruptHandler(int signum) {
 
 void forward_request(struct RequestPageMessage * msg) {
   client_id_t pg_owner;
-  DEBUG_LOG("type: %d address %p from %" PRIu64 "", 
-    msg->type, msg->pg_address, (uint64_t) msg->from);
-
   pthread_mutex_lock(&manager_lock);
   
   // Master is owner -- respond to original dude with an empty page

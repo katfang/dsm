@@ -65,7 +65,7 @@ void forward_request(struct RequestPageMessage * msg) {
     } else {
       DEBUG_LOG("received read request from %ld", msg->from);
     }
-    DEBUG_LOG("forwarding msg to %" PRIu64, msg->from);
+    DEBUG_LOG("forwarding msg to %" PRIu64, pg_owner);
     sendReqPgMsg(msg, pg_owner);
   }
 

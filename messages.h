@@ -23,6 +23,7 @@ struct PageInfoMessage {
     void *pg_address;
     copyset_t copyset;                    
     char pg_contents[PGSIZE];
+    client_id_t from;
 };
 
 #pragma pack(pop)

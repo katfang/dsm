@@ -22,6 +22,7 @@ static int fd;
 static int pg_info_fd;
 
 static struct DataTable *copysets;
+static struct DataTable *owners;
 static client_id_t id;
 
 // for handling the service thread 
@@ -31,16 +32,24 @@ static int dsm_initialized = 0;
 
 void process_read_request(void * addr, client_id_t requester) {    
   int r;
-  DEBUG_LOG("process_read_request %p", addr);
+  DEBUG_LOG("process_read_request %p from %lu", addr, requester);
+
+  data_t is_owner = 0;
+  get_page_data(owners, addr, &is_owner);
+  DEBUG_LOG("is owner? %lu", is_owner);
+  while (!is_owner) {
+    pthread_yield();
+    get_page_data(owners, addr, &is_owner);
+  }
+
   page_lock(addr);
-  // TODO: Handle case when I'm a writer... if it's relevant?
 
   // Set page perms to READ
   r = mprotect(addr, PGSIZE, PROT_READ);
   if (r < 0) {
     DEBUG_LOG("outside R request: error code %d", errno);
   } else {
-    DEBUG_LOG("marked %p as read-only.", addr);
+    DEBUG_LOG("%p marked as \e[35mread-only\e[0m", addr);
   }
 
   // Add reader to copyset
@@ -56,15 +65,25 @@ void process_read_request(void * addr, client_id_t requester) {
   outmsg.pg_address = addr;
   outmsg.copyset = copyset;
   memcpy(outmsg.pg_contents, addr, PGSIZE);
+  outmsg.from = id;
   sendPgInfoMsg(&outmsg, requester);
   
   page_unlock(addr);
+  DEBUG_LOG("");
 }
 
 /** Someone is requesting a write */
 void process_write_request(void * addr, client_id_t requester) {
   int r;
-  DEBUG_LOG("process_write_request %p", addr);
+  DEBUG_LOG("process_write_request %p from %lu", addr, requester);
+
+  data_t is_owner = 0;
+  get_page_data(owners, addr, &is_owner);
+  while (!is_owner) {
+    pthread_yield();
+    get_page_data(owners, addr, &is_owner);
+  }
+
   page_lock(addr);
   DEBUG_LOG("process_write_request locked");  
 
@@ -77,20 +96,29 @@ void process_write_request(void * addr, client_id_t requester) {
   outmsg.pg_address = addr;
   outmsg.copyset = copyset;
   memcpy(outmsg.pg_contents, addr, PGSIZE);
+  outmsg.from = id;
+  DEBUG_LOG("outmsg.from = %lu", id);
   
-  // Set page perms to NONE
-  r = mprotect(addr, PGSIZE, PROT_NONE);
-  if (r < 0) {
-    DEBUG_LOG("outside WR request: error code %d", errno);
-  } else {
-    DEBUG_LOG("gave up all access to %p.", addr);
-  }
+  //  if (requester != id) {
+    // Set page perms to NONE
+    r = mprotect(addr, PGSIZE, PROT_NONE);
+    if (r < 0) {
+      DEBUG_LOG("outside WR request: error code %d", errno);
+    } else {
+      DEBUG_LOG("%p marked as \e[35minaccessable\e[0m", addr);
+    }
+
+    set_page_data(owners, addr, 0);
+    //  }
 
   // send page
   DEBUG_LOG("sending page info message to %ld", requester);
   sendPgInfoMsg(&outmsg, requester);
   
+  //if (requester != id)
   page_unlock(addr);
+
+  DEBUG_LOG("");
 }
 
 
@@ -103,57 +131,78 @@ int is_write_fault(int signum, siginfo_t *info, void *ucontext) {
 
 /** Get write access to a page ... blocks */
 void get_write_access(void * addr) {
+  copyset_t copyset;
+  struct PageInfoMessage *info_msg;
+
   DEBUG_LOG("get_write_access %p", addr);
   page_lock(addr);
   DEBUG_LOG("get_write_access locked");
-  
-  // ask manager for write access to page
-  struct RequestPageMessage msg;
-  msg.type = WRITE;
-  msg.pg_address = addr;
-  msg.from = id;
-  sendReqPgMsg(&msg, 0);
 
-  page_unlock(addr);
+  data_t is_owner;
+  get_page_data(owners, addr, &is_owner);
 
-  struct PageInfoMessage *info_msg = recvPgInfoMsg(pg_info_fd);
-  assert (info_msg->type == WRITE);
-  assert (info_msg->pg_address == addr);  
+  if (is_owner) {
+    get_page_data(copysets, addr, &copyset);
+  }
+  else {
+    
+    // ask manager for write access to page
+    struct RequestPageMessage msg;
+    msg.type = WRITE;
+    msg.pg_address = addr;
+    msg.from = id;
+    sendReqPgMsg(&msg, 0);
+    
+    DEBUG_LOG("waiting for \e[33mwrite\e[0m access response");
+    //page_unlock(addr);
 
-  page_lock(addr);
+    info_msg = recvPgInfoMsg(pg_info_fd);
+    assert (info_msg->type == WRITE);
+    assert (info_msg->pg_address == addr);  
 
-  // TODO: check that we're still in the state we're supposed to be in
-  
-  // invalidate page's copyset
-  copyset_t copyset = info_msg->copyset;
-  set_page_data(copysets, addr, copyset);
+    //if (info_msg->from != id)
+    //page_lock(addr);
+    DEBUG_LOG("got \e[33mwrite\e[0m access response from %lu", info_msg->from);
+    
+    // invalidate page's copyset
+    copyset = info_msg->copyset;
+    set_page_data(copysets, addr, copyset);
+    
+  }
 
   while(copyset) {
     client_id_t reader = lowest_id(copyset);
+    copyset = remove_from_copyset(copyset, reader);
+    if (reader == id)
+      continue;
 
-    DEBUG_LOG("sending INVAL of page %p to " PRIu64, addr, reader);
+    DEBUG_LOG("sending INVAL of page %p to %lu", addr, reader);
     struct RequestPageMessage invalmsg;
     invalmsg.type = INVAL;
     invalmsg.pg_address = addr;
     invalmsg.from = id;
     sendReqPgMsg(&invalmsg, reader);
-
-    copyset = remove_from_copyset(copyset, reader);
   }
   
   // copyset = {}
   set_page_data(copysets, addr, 0);
 
   int r = mprotect(addr, PGSIZE, PROT_READ | PROT_WRITE);
-  memcpy(addr, info_msg->pg_contents, PGSIZE);
-  free(info_msg);
-
   if (r < 0) {
     DEBUG_LOG("error code %d", errno);
   } else {
-    DEBUG_LOG("marked as writable");
+    DEBUG_LOG("%p marked as \e[35mwritable\e[0m", addr);
   }
+
+  if (!is_owner) {
+    memcpy(addr, info_msg->pg_contents, PGSIZE);
+    free(info_msg);
+  }
+
+  set_page_data(owners, addr, 1);
+
   page_unlock(addr);
+  DEBUG_LOG("");
 }
 
 /** Get read access to a page ... blocks */
@@ -169,7 +218,8 @@ void get_read_access(void * addr) {
   
   sendReqPgMsg(&msg, 0);
 
-  page_unlock(addr);
+  DEBUG_LOG("waiting for \e[31mread\e[0m access response");
+  //page_unlock(addr);
 
   struct PageInfoMessage *info_msg = recvPgInfoMsg(pg_info_fd);
   // this assertion is not valid, because on the first read of a page, the
@@ -177,18 +227,16 @@ void get_read_access(void * addr) {
 //  assert (info_msg->type == READ);
   assert (info_msg->pg_address == addr);
 
-  page_lock(addr);
-
-  // TODO: check that we're still in the state we're supposed to be in
+  //page_lock(addr);
+  DEBUG_LOG("got \e[31mread\e[0m access response");
 
   set_page_data(copysets, addr, info_msg->copyset);
 
   int r = mprotect(addr, PGSIZE, PROT_READ | PROT_WRITE);
   if (r < 0) {
     DEBUG_LOG("could not mark as read-writable. error code %d", errno);
-    exit(1);
   } else {
-    DEBUG_LOG("successfully marked read-writable (temp to copy page contents)");
+    DEBUG_LOG("%p temporarily marked as \e[35mwritable\e[0m", addr);
   }
     
   memcpy(addr, info_msg->pg_contents, PGSIZE);
@@ -198,15 +246,16 @@ void get_read_access(void * addr) {
     if (r < 0) {
       DEBUG_LOG("error code %d", errno);
     } else {
-      DEBUG_LOG("marked as read-only");
+      DEBUG_LOG("%p marked as \e[35mread-only\e[0m", addr);
     }
   } else if (info_msg->type == WRITE) {
     r = mprotect(addr, PGSIZE, PROT_READ | PROT_WRITE);
     if (r < 0) {
       DEBUG_LOG("error code %d", errno);
     } else {
-      DEBUG_LOG("marked as read-write");
+      DEBUG_LOG("%p marked as \e[35mwritable\e[0m", addr);
     }
+    set_page_data(owners, addr, 1);
   } else {
     DEBUG_LOG("unknown message type %d!", info_msg->type);
     DEBUG_LOG("however, address is %p", info_msg->pg_address);
@@ -215,6 +264,7 @@ void get_read_access(void * addr) {
 
   free(info_msg);
   page_unlock(addr);
+  DEBUG_LOG("");
 }
 
 /** Just try to make a page writable for now. */
@@ -229,7 +279,9 @@ void faulthandler(int signum, siginfo_t *info, void *ucontext) {
   }
 }
 
-void handle_request(struct RequestPageMessage *msg) {
+void handle_request(void *vmsg) {
+  DEBUG_LOG("got message");
+  struct RequestPageMessage *msg = vmsg;
   switch (msg->type) {
   case READ:
     process_read_request(msg->pg_address, msg->from);
@@ -239,9 +291,15 @@ void handle_request(struct RequestPageMessage *msg) {
     break;
   case INVAL:
     DEBUG_LOG("invalidating page %p", msg->pg_address);
+    page_lock(msg->pg_address);
     mprotect(msg->pg_address, PGSIZE, PROT_NONE);
+    DEBUG_LOG("%p marked as \e[35minaccessable\e[0m", msg->pg_address);
+    page_unlock(msg->pg_address);
     break;
+  default:
+    DEBUG_LOG("unknown type of page request message: %u", msg->type);
   }
+  free(msg);
 }
 
 /** Will eventually be the thread that handles requests. */
@@ -264,9 +322,12 @@ void * service_thread(void *xa) {
   // things will just sit on the socket until we read it.
   
   struct RequestPageMessage *msg;
+  pthread_t req_thread;
   while (msg = recvReqPgMsg(sockfd)) {
-    handle_request(msg);
-    free(msg);
+    if (pthread_create(&req_thread, NULL, handle_request, msg) != 0) {
+      DEBUG_LOG("Error starting message-handling thread");
+      exit(1);
+    }
   }
 
   return NULL;
@@ -293,6 +354,9 @@ void dsm_init(client_id_t myId) {
   
   copysets = alloc_data_table();
   copysets->do_get_faults = 0;
+
+  owners = alloc_data_table();
+  //owners->do_get_faults = 0;
 
   // set up fault handling
   struct sigaction s;

@@ -32,7 +32,7 @@ static int dsm_initialized = 0;
 
 void process_read_request(void * addr, client_id_t requester) {    
   int r;
-  DEBUG_LOG("process_read_request %p from %lu", addr, requester);
+  DEBUG_LOG("\e[31mprocess_read_request\e[0m %p from %lu", addr, requester);
 
   data_t is_owner = 0;
   get_page_data(owners, addr, &is_owner);
@@ -75,7 +75,7 @@ void process_read_request(void * addr, client_id_t requester) {
 /** Someone is requesting a write */
 void process_write_request(void * addr, client_id_t requester) {
   int r;
-  DEBUG_LOG("process_write_request %p from %lu", addr, requester);
+  DEBUG_LOG("\e[33mprocess_write_request\e[0m %p from %lu", addr, requester);
 
   data_t is_owner = 0;
   get_page_data(owners, addr, &is_owner);
@@ -85,7 +85,7 @@ void process_write_request(void * addr, client_id_t requester) {
   }
 
   page_lock(addr);
-  DEBUG_LOG("process_write_request locked");  
+  DEBUG_LOG("process_write_request locked");
 
   // put together message
   copyset_t copyset;
@@ -134,7 +134,7 @@ void get_write_access(void * addr) {
   copyset_t copyset;
   struct PageInfoMessage *info_msg;
 
-  DEBUG_LOG("get_write_access %p", addr);
+  DEBUG_LOG("\e[33mget_write_access\e[0m %p", addr);
   page_lock(addr);
   DEBUG_LOG("get_write_access locked");
 
@@ -207,7 +207,7 @@ void get_write_access(void * addr) {
 
 /** Get read access to a page ... blocks */
 void get_read_access(void * addr) {
-  DEBUG_LOG("get_read_access %p", addr);
+  DEBUG_LOG("\e[31mget_read_access\e[0m %p", addr);
   page_lock(addr);
 
   // ask manager for read access to page

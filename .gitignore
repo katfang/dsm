@@ -1,2 +1,7 @@
 *.o
 *.so
+
+manager
+dsm_test
+dsm_read_test
+

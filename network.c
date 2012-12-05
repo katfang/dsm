@@ -125,7 +125,7 @@ static void sendMsg(client_id_t id, char *msg, int port, int length) {
     close(sockfd);
     error("Couldn't fully write message");
   }
-  DEBUG_LOG("Wrote message to %d", id);
+  DEBUG_LOG("Wrote message to %d", (int) id);
   close(sockfd);
 }
 /* returns something negative on failure. */

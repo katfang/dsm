@@ -92,9 +92,7 @@ void process_write_request(void * addr, client_id_t requester) {
   DEBUG_LOG("sending page info message to %ld", requester);
   sendPgInfoMsg(&outmsg, requester);
   
-  if (requester != id) {
-    page_unlock(addr);
-  }
+  page_unlock(addr);
 }
 
 
@@ -118,9 +116,15 @@ void get_write_access(void * addr) {
   msg.from = id;
   sendReqPgMsg(&msg, 0);
 
+  page_unlock(addr);
+
   struct PageInfoMessage *info_msg = recvPgInfoMsg(pg_info_fd);
   assert (info_msg->type == WRITE);
   assert (info_msg->pg_address == addr);  
+
+  page_lock(addr);
+
+  // TODO: check that we're still in the state we're supposed to be in
   
   // invalidate page's copyset
   copyset_t copyset = info_msg->copyset;
@@ -167,11 +171,18 @@ void get_read_access(void * addr) {
   
   sendReqPgMsg(&msg, 0);
 
+  page_unlock(addr);
+
   struct PageInfoMessage *info_msg = recvPgInfoMsg(pg_info_fd);
   // this assertion is not valid, because on the first read of a page, the
   // master actually gives write permissions.
 //  assert (info_msg->type == READ);
   assert (info_msg->pg_address == addr);
+
+  page_lock(addr);
+
+  // TODO: check that we're still in the state we're supposed to be in
+
   set_page_data(copysets, addr, info_msg->copyset);
 
   int r = mprotect(addr, PGSIZE, PROT_READ | PROT_WRITE);

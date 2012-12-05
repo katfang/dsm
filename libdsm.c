@@ -31,7 +31,7 @@ static int dsm_initialized = 0;
 
 void process_read_request(void * addr, client_id_t requester) {    
   int r;
-  DEBUG_LOG("process_read_request %p", addr);
+  DEBUG_LOG("\e[31mprocess_read_request\e[0m %p", addr);
   page_lock(addr);
   // TODO: Handle case when I'm a writer... if it's relevant?
 
@@ -64,7 +64,7 @@ void process_read_request(void * addr, client_id_t requester) {
 /** Someone is requesting a write */
 void process_write_request(void * addr, client_id_t requester) {
   int r;
-  DEBUG_LOG("process_write_request %p", addr);
+  DEBUG_LOG("\e[33mprocess_write_request\e[0m %p", addr);
   if (requester != id) {
     page_lock(addr);
     DEBUG_LOG("process_write_request locked");  
@@ -107,7 +107,7 @@ int is_write_fault(int signum, siginfo_t *info, void *ucontext) {
 
 /** Get write access to a page ... blocks */
 void get_write_access(void * addr) {
-  DEBUG_LOG("get_write_access %p", addr);
+  DEBUG_LOG("\e[33mget_write_access\e[0m %p", addr);
   page_lock(addr);
   DEBUG_LOG("get_write_access locked");
   
@@ -156,7 +156,7 @@ void get_write_access(void * addr) {
 
 /** Get read access to a page ... blocks */
 void get_read_access(void * addr) {
-  DEBUG_LOG("get_read_access %p", addr);
+  DEBUG_LOG("\e[31mget_read_access\e[0m %p", addr);
   page_lock(addr);
 
   // ask manager for read access to page

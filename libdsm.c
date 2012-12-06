@@ -334,7 +334,6 @@ void * service_thread(void *xa) {
       free(msg);
       exit(1);
     }
-    free(msg);
   }
 
   return NULL;

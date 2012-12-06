@@ -53,17 +53,17 @@ void forward_request(struct RequestPageMessage * msg) {
     outmsg.copyset = 0;
     memset(outmsg.pg_contents, 0, PGSIZE);
     DEBUG_LOG("outmsg.type is %d", outmsg.type);
-    DEBUG_LOG("sending info msg %p to %" PRIu64 "", &outmsg, msg->from);
+    DEBUG_LOG("sending info msg %p of address %p to %" PRIu64 "", &outmsg, outmsg.pg_address, msg->from);
     sendPgInfoMsg(&outmsg, msg->from);
 
   // Owner exists, so we forward the request
   // Set page's new owner if incorrect.
   } else {
     if (msg->type == WRITE) {
-      DEBUG_LOG("received \e[33mwrite\e[0m request from %ld", msg->from);
+      DEBUG_LOG("received \e[33mwrite\e[0m request of %p from %ld", msg->pg_address, msg->from);
       set_page_data(owner_table, msg->pg_address, msg->from);
     } else {
-      DEBUG_LOG("received \e[31mread\e[0m request from %ld", msg->from);
+      DEBUG_LOG("received \e[31mread\e[0m request of %p from %ld", msg->pg_address, msg->from);
     }
     DEBUG_LOG("forwarding msg to %" PRIu64, pg_owner);
     sendReqPgMsg(msg, pg_owner);
@@ -87,7 +87,7 @@ int main(void) {
 
   while (msg = recvReqPgMsg(sockfd)) {
     forward_request(msg);
-    free(msg);
+//    free(msg);
   }
 
   DEBUG_LOG("ending...");

@@ -282,8 +282,7 @@ void faulthandler(int signum, siginfo_t *info, void *ucontext) {
   }
 }
 
-void handle_request(void *vmsg) {
-  struct RequestPageMessage *msg = vmsg;
+void handle_request(struct RequestPageMessage *msg) {
   DEBUG_LOG("got message with address %p", msg->pg_address);
   switch (msg->type) {
   case READ:
@@ -327,11 +326,7 @@ void * service_thread(void *xa) {
   struct RequestPageMessage *msg;
   pthread_t req_thread;
   while (msg = recvReqPgMsg(sockfd)) {
-    if (pthread_create(&req_thread, NULL, handle_request, msg) != 0) {
-      DEBUG_LOG("Error starting message-handling thread");
-      free(msg);
-      exit(1);
-    }
+    handle_request(msg);
     free(msg);
   }
 

@@ -140,6 +140,7 @@ void get_write_access(void * addr) {
 
   data_t is_owner;
   get_page_data(owners, addr, &is_owner);
+  DEBUG_LOG("Am I the owner of %p? %lu", addr, is_owner);
 
   if (is_owner) {
     get_page_data(copysets, addr, &copyset);
@@ -199,6 +200,7 @@ void get_write_access(void * addr) {
     free(info_msg);
   }
 
+  DEBUG_LOG("I'm the owner of %p", addr);
   set_page_data(owners, addr, 1);
 
   page_unlock(addr);
@@ -255,6 +257,7 @@ void get_read_access(void * addr) {
     } else {
       DEBUG_LOG("%p marked as \e[35mwritable\e[0m", addr);
     }
+    DEBUG_LOG("I'm the owner of %p", addr);
     set_page_data(owners, addr, 1);
   } else {
     DEBUG_LOG("unknown message type %d!", info_msg->type);
@@ -356,7 +359,7 @@ void dsm_init(client_id_t myId) {
   copysets->do_get_faults = 0;
 
   owners = alloc_data_table();
-  //owners->do_get_faults = 0;
+  owners->do_get_faults = 0;
 
   // set up fault handling
   struct sigaction s;

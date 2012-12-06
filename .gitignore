@@ -1,6 +1,8 @@
 *.o
 *.so
 
+splash2
+
 manager
 dsm_test
 dsm_read_test

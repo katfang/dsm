@@ -30,7 +30,7 @@ pthread_mutex_t service_started_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t service_started_cond = PTHREAD_COND_INITIALIZER;
 static int dsm_initialized = 0;
 
-void process_read_request(void * addr, client_id_t requester) {    
+void process_read_request(void * addr, client_id_t requester) {
   int r;
   DEBUG_LOG("\e[31mprocess_read_request\e[0m %p from %lu", addr, requester);
 
@@ -108,7 +108,8 @@ void process_write_request(void * addr, client_id_t requester) {
       DEBUG_LOG("%p marked as \e[35minaccessable\e[0m", addr);
     }
 
-    set_page_data(owners, addr, 0);
+  DEBUG_LOG("marking self as NOT owner of %p", addr);
+  set_page_data(owners, addr, 0);
     //  }
 
   // send page
@@ -200,7 +201,7 @@ void get_write_access(void * addr) {
     free(info_msg);
   }
 
-  DEBUG_LOG("I'm the owner of %p", addr);
+  DEBUG_LOG("marking self as owner of %p", addr);
   set_page_data(owners, addr, 1);
 
   page_unlock(addr);
@@ -257,7 +258,8 @@ void get_read_access(void * addr) {
     } else {
       DEBUG_LOG("%p marked as \e[35mwritable\e[0m", addr);
     }
-    DEBUG_LOG("I'm the owner of %p", addr);
+
+    DEBUG_LOG("marking self as owner of %p!", addr);
     set_page_data(owners, addr, 1);
   } else {
     DEBUG_LOG("unknown message type %d!", info_msg->type);
@@ -283,8 +285,8 @@ void faulthandler(int signum, siginfo_t *info, void *ucontext) {
 }
 
 void handle_request(void *vmsg) {
-  DEBUG_LOG("got message");
   struct RequestPageMessage *msg = vmsg;
+  DEBUG_LOG("got message with address %p", msg->pg_address);
   switch (msg->type) {
   case READ:
     process_read_request(msg->pg_address, msg->from);
@@ -296,13 +298,13 @@ void handle_request(void *vmsg) {
     DEBUG_LOG("invalidating page %p", msg->pg_address);
     page_lock(msg->pg_address);
     mprotect(msg->pg_address, PGSIZE, PROT_NONE);
-    DEBUG_LOG("%p marked as \e[35minaccessable\e[0m", msg->pg_address);
+    DEBUG_LOG("%p marked as \e[35minaccessible\e[0m", msg->pg_address);
     page_unlock(msg->pg_address);
     break;
   default:
     DEBUG_LOG("unknown type of page request message: %u", msg->type);
+    exit(1);
   }
-  free(msg);
 }
 
 /** Will eventually be the thread that handles requests. */
@@ -329,8 +331,10 @@ void * service_thread(void *xa) {
   while (msg = recvReqPgMsg(sockfd)) {
     if (pthread_create(&req_thread, NULL, handle_request, msg) != 0) {
       DEBUG_LOG("Error starting message-handling thread");
+      free(msg);
       exit(1);
     }
+    free(msg);
   }
 
   return NULL;

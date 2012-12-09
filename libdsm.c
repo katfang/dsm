@@ -141,6 +141,7 @@ void get_write_access(void * addr) {
 
   data_t is_owner;
   get_page_data(owners, addr, &is_owner);
+  DEBUG_LOG("Am I the owner of %p? %lu", addr, is_owner);
 
   if (is_owner) {
     get_page_data(copysets, addr, &copyset);
@@ -257,6 +258,7 @@ void get_read_access(void * addr) {
     } else {
       DEBUG_LOG("%p marked as \e[35mwritable\e[0m", addr);
     }
+
     DEBUG_LOG("marking self as owner of %p!", addr);
     set_page_data(owners, addr, 1);
   } else {
@@ -326,6 +328,13 @@ void * service_thread(void *xa) {
   struct RequestPageMessage *msg;
   pthread_t req_thread;
   while (msg = recvReqPgMsg(sockfd)) {
+    /*
+    if (pthread_create(&req_thread, NULL, handle_request, msg) != 0) {
+      DEBUG_LOG("Error starting message-handling thread");
+      free(msg);
+      exit(1);
+    }
+    */
     handle_request(msg);
     free(msg);
   }

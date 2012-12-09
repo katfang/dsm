@@ -19,7 +19,7 @@ int main(int argc, char* argv[]) {
   int i = 0;
   
   while(1) {
-    printf("", 
+    printf("values at %p are %x %x %x\n", 
       addr, addr[0], addr[1], addr[2], 0xcafebabe + i, &addr[id]);
     addr[id]= 0xcafebabe + i;
 //    printf("value at %p is 0x%x.\n\n", &addr[id], addr[id]);

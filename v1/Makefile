@@ -17,8 +17,8 @@ dsm_test: dsm_test.c libdsm.h network.h pagelocks.h pagedata.h copyset.h  $(dsm_
 alloc_test: alloc_test.c libdsm.h network.h pagelocks.h pagedata.h copyset.h $(dsm_objects)
 	$(CC) -pthread alloc_test.c $(dsm_objects) -o alloc_test -lrt
 
-strassen_test: strassen.c strassen_test.c
-	$(CC) strassen_test.c strassen.c -o strassen_test
+strassen_test: scheduler.c strassen.c strassen_test.c
+	$(CC) strassen_test.c strassen.c scheduler.c -o strassen_test
 
 .PHONY: clean
 clean:

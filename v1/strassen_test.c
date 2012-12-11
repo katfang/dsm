@@ -1,8 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
+#include "scheduler.h"
 #include "strassen.h"
 
-#define MAT_DIMEN 4
+#define MAT_DIMEN (1 << 10)
+#define MIN(x,y) (((x) < (y)) ? (x) : (y))
 
 void print_matrix(char* label, double **m);
 int main(void);
@@ -11,9 +14,9 @@ void print_matrix(char* label, double **m) {
   int i, j;
 
   printf("%s:\n", label);
-  for (i = 0; i < MAT_DIMEN; i++) {
-    for (j = 0; j < MAT_DIMEN; j++) {
-      printf("%f ", m[i][j]);
+  for (i = 0; i < MIN(MAT_DIMEN, 16); i++) {
+    for (j = 0; j < MIN(MAT_DIMEN, 16); j++) {
+      printf("%d ", (int)m[i][j]);
     }
     printf("\n");
   }
@@ -38,12 +41,21 @@ int main(void) {
     }
   }
 
-  printf("here");
-  strassen( a, b, c, 4);
-  printf("here");
+  time_t start = time(NULL);
+  printf("here\n");
+  strassen( a, b, c, MAT_DIMEN);
+  printf("here\n");
+  
+  while(has_task()) {
+    //printf("running subtask: ");
+    dequeue_and_run_task();
+  }
+
+  time_t end = time(NULL);
   print_matrix("a", a);
   print_matrix("b", b);
   print_matrix("c", c);
+  printf("Elapsed time: %ld seconds\n", end - start);
   
   return 0;
 }

@@ -7,18 +7,39 @@
  
 #include <stdio.h>
 #include <stdlib.h>
+
+#include "strassen.h"
+#include "scheduler.h"
+
+#define MIN_BLOCK 64
  
+void mmult(double **a, double **b, double **c, int tam);
 void strassen(double **a, double **b, double **c, int tam);
+void strassen_boxed(void *a);
 void sum(double **a, double **b, double **result, int tam);
 void subtract(double **a, double **b, double **result, int tam);
+struct strassen_args *args(double **a, double **b, double **c,
+			   int tam, int freea, int freeb);
 double **allocate_real_matrix(int tam, int random);
 double **free_real_matrix(double **v, int tam);
+
+// naive matrix multiplication
+void mmult(double **a, double **b, double **c, int tam) {
+  int i, j, k;
+  for (i = 0; i < tam; i++) {
+    for (j = 0; j < tam; j++) {
+      c[i][j] = 0;
+      for (k = 0; k < tam; k++) {
+	c[i][j] += a[i][k] * b[k][j];
+      }
+    }
+  }
+}
  
 void strassen(double **a, double **b, double **c, int tam) {
  
-  // trivial case: when the matrix is 1 X 1:
-  if (tam == 1) {
-    c[0][0] = a[0][0] * b[0][0];
+  if (tam <= MIN_BLOCK) {
+    mmult(a, b, c, tam);
     return;
   }
  
@@ -26,8 +47,9 @@ void strassen(double **a, double **b, double **c, int tam) {
   int newTam = tam/2;
   double **a11, **a12, **a21, **a22;
   double **b11, **b12, **b21, **b22;
-  double **c11, **c12, **c21, **c22;
   double **p1, **p2, **p3, **p4, **p5, **p6, **p7;
+  double **r1, **r2, **r3, **r4, **r5,
+    **r6, **r7, **r8, **r9, **r10;
  
   // memory allocation:
   a11 = allocate_real_matrix(newTam, -1);
@@ -40,11 +62,6 @@ void strassen(double **a, double **b, double **c, int tam) {
   b21 = allocate_real_matrix(newTam, -1);
   b22 = allocate_real_matrix(newTam, -1);
  
-  c11 = allocate_real_matrix(newTam, -1);
-  c12 = allocate_real_matrix(newTam, -1);
-  c21 = allocate_real_matrix(newTam, -1);
-  c22 = allocate_real_matrix(newTam, -1);
- 
   p1 = allocate_real_matrix(newTam, -1);
   p2 = allocate_real_matrix(newTam, -1);
   p3 = allocate_real_matrix(newTam, -1);
@@ -52,9 +69,17 @@ void strassen(double **a, double **b, double **c, int tam) {
   p5 = allocate_real_matrix(newTam, -1);
   p6 = allocate_real_matrix(newTam, -1);
   p7 = allocate_real_matrix(newTam, -1);
- 
-  double **aResult = allocate_real_matrix(newTam, -1);
-  double **bResult = allocate_real_matrix(newTam, -1);
+
+  r1 = allocate_real_matrix(newTam, -1);
+  r2 = allocate_real_matrix(newTam, -1);
+  r3 = allocate_real_matrix(newTam, -1);
+  r4 = allocate_real_matrix(newTam, -1);
+  r5 = allocate_real_matrix(newTam, -1);
+  r6 = allocate_real_matrix(newTam, -1);
+  r7 = allocate_real_matrix(newTam, -1);
+  r8 = allocate_real_matrix(newTam, -1);
+  r9 = allocate_real_matrix(newTam, -1);
+  r10 = allocate_real_matrix(newTam, -1);
  
   int i, j;
  
@@ -72,46 +97,92 @@ void strassen(double **a, double **b, double **c, int tam) {
       b22[i][j] = b[i + newTam][j + newTam];
     }
   }
+
+  struct strassen_continuation *cc =
+    malloc(sizeof(struct strassen_continuation));
+  struct task *continuation = generate_task(strassen_continue, cc);
+
+  struct strassen_args *cc1, *cc2, *cc3, *cc4, *cc5, *cc6, *cc7;
  
   // Calculating p1 to p7:
+  sum(a11, a22, r1, newTam); // a11 + a22
+  sum(b11, b22, r2, newTam); // b11 + b22
+  cc1 = args(r1, r2, p1, newTam, 1, 1); // p1 = (a11+a22) * (b11+b22)
+  task_dependency(continuation, enqueue(strassen_boxed, cc1));
  
-  sum(a11, a22, aResult, newTam); // a11 + a22
-  sum(b11, b22, bResult, newTam); // b11 + b22
-  strassen(aResult, bResult, p1, newTam); // p1 = (a11+a22) * (b11+b22)
+  sum(a21, a22, r3, newTam); // a21 + a22
+  cc2 = args(r3, b11, p2, newTam, 1, 0); // p2 = (a21+a22) * (b11)
+  task_dependency(continuation, enqueue(strassen_boxed, cc2));
  
-  sum(a21, a22, aResult, newTam); // a21 + a22
-  strassen(aResult, b11, p2, newTam); // p2 = (a21+a22) * (b11)
+  subtract(b12, b22, r4, newTam); // b12 - b22
+  cc3 = args(a11, r4, p3, newTam, 0, 1); // p3 = (a11) * (b12 - b22)
+  task_dependency(continuation, enqueue(strassen_boxed, cc3));
  
-  subtract(b12, b22, bResult, newTam); // b12 - b22
-  strassen(a11, bResult, p3, newTam); // p3 = (a11) * (b12 - b22)
+  subtract(b21, b11, r5, newTam); // b21 - b11
+  cc4 = args(a22, r5, p4, newTam, 0, 1); // p4 = (a22) * (b21 - b11)
+  task_dependency(continuation, enqueue(strassen_boxed, cc4));
  
-  subtract(b21, b11, bResult, newTam); // b21 - b11
-  strassen(a22, bResult, p4, newTam); // p4 = (a22) * (b21 - b11)
+  sum(a11, a12, r6, newTam); // a11 + a12
+  cc5 = args(r6, b22, p5, newTam, 1, 0); // p5 = (a11+a12) * (b22) 
+  task_dependency(continuation, enqueue(strassen_boxed, cc5));  
  
-  sum(a11, a12, aResult, newTam); // a11 + a12
-  strassen(aResult, b22, p5, newTam); // p5 = (a11+a12) * (b22)   
+  subtract(a21, a11, r7, newTam); // a21 - a11
+  sum(b11, b12, r8, newTam); // b11 + b12
+  cc6 = args(r7, r8, p6, newTam, 1, 1); // p6 = (a21-a11) * (b11+b12)
+  task_dependency(continuation, enqueue(strassen_boxed, cc6));
  
-  subtract(a21, a11, aResult, newTam); // a21 - a11
-  sum(b11, b12, bResult, newTam); // b11 + b12
-  strassen(aResult, bResult, p6, newTam); // p6 = (a21-a11) * (b11+b12)
+  subtract(a12, a22, r9, newTam); // a12 - a22
+  sum(b21, b22, r10, newTam); // b21 + b22
+  cc7 = args(r9, r10, p7, newTam, 1, 1); // p7 = (a12-a22) * (b21+b22)
+  task_dependency(continuation, enqueue(strassen_boxed, cc7));
+
+  free_real_matrix(a12, newTam);
+  free_real_matrix(a21, newTam);
  
-  subtract(a12, a22, aResult, newTam); // a12 - a22
-  sum(b21, b22, bResult, newTam); // b21 + b22
-  strassen(aResult, bResult, p7, newTam); // p7 = (a12-a22) * (b21+b22)
+  free_real_matrix(b12, newTam);
+  free_real_matrix(b21, newTam);
+
+  cc->newTam = newTam;
+  cc->a11 = a11; cc->a22 = a22;
+  cc->b11 = b11; cc->b22 = b22;
+  cc->p1 = p1; cc->p2 = p2; cc->p3 = p3; cc->p4 = p4;
+  cc->p5 = p5; cc->p6 = p6; cc->p7 = p7;
+  cc->c = c;
+  
+  task_continues(continuation);
+  enqueue_task(continuation);
+}
+
+void strassen_continue(void *a) {
+  struct strassen_continuation *args = a;
+  //printf("\n\e[32mcontinue\e[0m \e[3%dmlevel\e[0m %d\n", args->newTam, args->newTam);
+
+  int newTam = args->newTam;
+  double **c = args->c;
  
-  // calculating c21, c21, c11 e c22:
+  double **c11 = allocate_real_matrix(newTam, -1);
+  double **c12 = allocate_real_matrix(newTam, -1);
+  double **c21 = allocate_real_matrix(newTam, -1);
+  double **c22 = allocate_real_matrix(newTam, -1);
  
-  sum(p3, p5, c12, newTam); // c12 = p3 + p5
-  sum(p2, p4, c21, newTam); // c21 = p2 + p4
+  double **aResult = allocate_real_matrix(newTam, -1);
+  double **bResult = allocate_real_matrix(newTam, -1);
+
+  // calculating c21, c21, c11 & c22:
  
-  sum(p1, p4, aResult, newTam); // p1 + p4
-  sum(aResult, p7, bResult, newTam); // p1 + p4 + p7
-  subtract(bResult, p5, c11, newTam); // c11 = p1 + p4 - p5 + p7
+  sum(args->p3, args->p5, c12, newTam); // c12 = p3 + p5
+  sum(args->p2, args->p4, c21, newTam); // c21 = p2 + p4
  
-  sum(p1, p3, aResult, newTam); // p1 + p3
-  sum(aResult, p6, bResult, newTam); // p1 + p3 + p6
-  subtract(bResult, p2, c22, newTam); // c22 = p1 + p3 - p2 + p6
+  sum(args->p1, args->p4, aResult, newTam); // p1 + p4
+  sum(aResult, args->p7, bResult, newTam); // p1 + p4 + p7
+  subtract(bResult, args->p5, c11, newTam); // c11 = p1 + p4 - p5 + p7
  
+  sum(args->p1, args->p3, aResult, newTam); // p1 + p3
+  sum(aResult, args->p6, bResult, newTam); // p1 + p3 + p6
+  subtract(bResult, args->p2, c22, newTam); // c22 = p1 + p3 - p2 + p6
+ 
+  int i, j;
+
   // Grouping the results obtained in a single matrix:
   for (i = 0; i < newTam ; i++) {
     for (j = 0 ; j < newTam ; j++) {
@@ -123,31 +194,37 @@ void strassen(double **a, double **b, double **c, int tam) {
   }
  
   // deallocating memory (free):
-  a11 = free_real_matrix(a11, newTam);
-  a12 = free_real_matrix(a12, newTam);
-  a21 = free_real_matrix(a21, newTam);
-  a22 = free_real_matrix(a22, newTam);
+  free_real_matrix(args->a11, newTam);
+  free_real_matrix(args->a22, newTam);
  
-  b11 = free_real_matrix(b11, newTam);
-  b12 = free_real_matrix(b12, newTam);
-  b21 = free_real_matrix(b21, newTam);
-  b22 = free_real_matrix(b22, newTam);
+  free_real_matrix(args->b11, newTam);
+  free_real_matrix(args->b22, newTam);
  
   c11 = free_real_matrix(c11, newTam);
   c12 = free_real_matrix(c12, newTam);
   c21 = free_real_matrix(c21, newTam);
   c22 = free_real_matrix(c22, newTam);
  
-  p1 = free_real_matrix(p1, newTam);
-  p2 = free_real_matrix(p2, newTam);
-  p3 = free_real_matrix(p3, newTam);
-  p4 = free_real_matrix(p4, newTam);
-  p5 = free_real_matrix(p5, newTam);
-  p6 = free_real_matrix(p6, newTam);
-  p7 = free_real_matrix(p7, newTam);
+  free_real_matrix(args->p1, newTam);
+  free_real_matrix(args->p2, newTam);
+  free_real_matrix(args->p3, newTam);
+  free_real_matrix(args->p4, newTam);
+  free_real_matrix(args->p5, newTam);
+  free_real_matrix(args->p6, newTam);
+  free_real_matrix(args->p7, newTam);
+
   aResult = free_real_matrix(aResult, newTam);
   bResult = free_real_matrix(bResult, newTam);
 } // end of Strassen function
+
+void strassen_boxed(void *a) {
+  struct strassen_args *args = a;
+  //  printf("strassen %d\n", args->tam);
+  strassen(args->a, args->b, args->c, args->tam);
+  if(args->freea) free_real_matrix(args->a, args->tam);
+  if(args->freeb) free_real_matrix(args->b, args->tam);
+  free(args);
+}
  
 /*------------------------------------------------------------------------------*/
 // function to sum two matrices
@@ -173,6 +250,19 @@ void subtract(double **a, double **b, double **result, int tam) {
       result[i][j] = a[i][j] - b[i][j];
     }
   }   
+}
+
+/*------------------------------*/
+struct strassen_args *args(double **a, double **b, double **c,
+			   int tam, int freea, int freeb) {
+  struct strassen_args *cc = malloc(sizeof(struct strassen_args));
+  cc->a = a;
+  cc->b = b;
+  cc->c = c;
+  cc->tam = tam;
+  cc->freea = freea;
+  cc->freeb = freeb;
+  return cc;
 }
  
 /*------------------------------------------------------------------------------*/

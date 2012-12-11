@@ -3,7 +3,7 @@
 #include "debug.h"
 
 #define DEBUG 1
-#define PAGE_IN_USE 0x1 
+#define PAGE_IN_USE (void*) 0x1 
 #define END_FREE_LIST (void*) 0x2
 
 pthread_mutex_t alloc_started_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -20,6 +20,8 @@ void * alloc_thread(void *xa);
 void process_alloc(struct AllocMessage *msg);
 void process_malloc(struct AllocMessage *msg);
 void process_dsm_open(struct AllocMessage *msg);
+void process_reserve(struct AllocMessage *msg);
+void process_free(struct AllocMessage *msg);
 
 void start_alloc(void) {
   pthread_t tha;
@@ -64,13 +66,23 @@ void * alloc_thread(void *xa) {
 }
 
 void process_alloc(struct AllocMessage *msg) {
-  if (msg->type == MALLOC) {
+  switch (msg->type) {
+  case MALLOC:
     process_malloc(msg);
-  } else if (msg->type == DSM_OPEN) {  
+    break;
+  case DSM_OPEN:
     process_dsm_open(msg);
+    break;
+  case RESERVE:
+    process_reserve(msg);
+    break;
+  case FREE:
+    process_free(msg);
+    break;
   }
 }
 
+/** Asks the server to malloc some space. */
 void process_malloc(struct AllocMessage *msg) {
   DEBUG_LOG("Processing \e[34mmalloc\e[0m for %lu bytes", msg->size);
   // make response message
@@ -128,7 +140,7 @@ void process_malloc(struct AllocMessage *msg) {
   DEBUG_LOG("start at: %p, end at: %p", curr, end);
   while (curr != end) {
     get_page_data(free_table, curr, (data_t*) &next);
-    set_page_data(free_table, curr, PAGE_IN_USE);
+    set_page_data(free_table, curr, (data_t) PAGE_IN_USE);
     curr = next;
   }
   
@@ -145,6 +157,7 @@ void process_malloc(struct AllocMessage *msg) {
   }
 }
 
+/** Tells the manager that this space is available for allocating. */
 void process_dsm_open(struct AllocMessage *msg) {
   DEBUG_LOG("processing \e[34mdsm_open\e[0m at %p for %lu from %lu", msg->pg_address, msg->size, msg->from);
   assert((long) msg->pg_address % PGSIZE == 0);
@@ -177,4 +190,82 @@ void process_dsm_open(struct AllocMessage *msg) {
   msg->type = DSM_OPEN_RESPONSE;
   sendAllocMessage(msg, msg->from);
   DEBUG_LOG("finished processing dsm_open at %p for %lu from %lu", msg->pg_address, msg->size, msg->from);
+}
+
+void process_reserve(struct AllocMessage *msg) {
+  DEBUG_LOG("processing \e[34mreserve\e[0m at %p for %lu from %lu", msg->pg_address, msg->size, msg->from);
+  assert((long) msg->pg_address % PGSIZE == 0);
+  assert(msg->size % PGSIZE == 0);
+    
+  pthread_mutex_lock(&alloc_lock);
+
+  void *addr, *next, *a;
+  void *max_addr = msg->pg_address + msg->size;
+
+  for (addr = msg->pg_address; addr < max_addr; addr += PGSIZE) {
+    if (get_page_data(free_table, addr, (data_t*) &next) < 0) {
+      DEBUG_LOG("Error in getting free table data.");
+      continue;
+    } 
+    
+    // memory hasn't been seen yet, just set to in use.
+    if (next == 0x0) { 
+      set_page_data(free_table, addr, (data_t) PAGE_IN_USE);
+    } else if (next == PAGE_IN_USE) { 
+      // memory is already in use and can't be malloc'd already.
+  
+    // else, memory was known by allocator, need to fix
+    } else { 
+      set_page_data(free_table, addr, (data_t) PAGE_IN_USE);
+
+      // TODO free table should be a doubly linked list. We're just guessing at the previous value here...  
+      // TODO this will work until we implement dsm_free()
+      get_page_data(free_table, addr - PGSIZE, (data_t*) &a);
+      if (a == addr) {
+        set_page_data(free_table, addr - PGSIZE, (data_t) next);
+      }
+    }
+  }
+  
+  pthread_mutex_unlock(&alloc_lock);
+
+  // reply with open successful
+  msg->type = RESERVE_RESPONSE;
+  sendAllocMessage(msg, msg->from);
+  DEBUG_LOG("finished processing reserve at %p for %lu from %lu", msg->pg_address, msg->size, msg->from);
+}
+
+/** Tells the manager that this space is available for allocating. */
+void process_free(struct AllocMessage *msg) {
+  DEBUG_LOG("processing \e[34mfree\e[0m at %p for %lu from %lu", msg->pg_address, msg->size, msg->from);
+  assert((long) msg->pg_address % PGSIZE == 0);
+  assert(msg->size % PGSIZE == 0);
+
+  pthread_mutex_lock(&alloc_lock);
+
+  void *addr, *next;
+  void *max_addr = msg->pg_address + msg->size - PGSIZE; 
+  // TODO ^ round up max_addr instead of having asserts
+
+  for (addr = max_addr; addr >= msg->pg_address; addr -= PGSIZE) {
+    if (get_page_data(free_table, addr, (data_t*) &next) < 0) {
+      DEBUG_LOG("Error in getting free table data.");
+      continue;
+    } 
+    // if next is not PAGE_IN_USE, something is wrong
+    if (next == PAGE_IN_USE) { 
+      set_page_data(free_table, addr, (data_t) free_page);
+      void* next;
+      get_page_data(free_table, addr, (data_t*) &next);
+      DEBUG_LOG("%p's next set to: %p", addr, next);
+      free_page = addr; 
+    }
+  }
+  
+  pthread_mutex_unlock(&alloc_lock);
+
+  // reply with open successful
+  msg->type = FREE_RESPONSE;
+  sendAllocMessage(msg, msg->from);
+  DEBUG_LOG("finished processing free at %p for %lu from %lu", msg->pg_address, msg->size, msg->from);
 }

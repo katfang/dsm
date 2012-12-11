@@ -15,7 +15,7 @@ int main(int argc, char* argv[]) {
   printf("id is %d\n", id); 
   dsm_init(id);
 
-  int *addr = (int *) dsm_open((void*) 0xdeadbeef000, (size_t) 4096);
+  int *addr = (int *) dsm_reserve((void*) 0xdeadbeef000, (size_t) 4096);
   int i = 0;
   
   while(1) {

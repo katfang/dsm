@@ -11,7 +11,7 @@
 #include "strassen.h"
 #include "scheduler.h"
 
-#define MIN_BLOCK 64
+#define MIN_BLOCK (1 << 6)
  
 void mmult(double **a, double **b, double **c, int tam);
 void strassen(double **a, double **b, double **c, int tam);
@@ -103,38 +103,53 @@ void strassen(double **a, double **b, double **c, int tam) {
   struct task *continuation = generate_task(strassen_continue, cc);
 
   struct strassen_args *cc1, *cc2, *cc3, *cc4, *cc5, *cc6, *cc7;
+  struct task *t;
  
   // Calculating p1 to p7:
   sum(a11, a22, r1, newTam); // a11 + a22
   sum(b11, b22, r2, newTam); // b11 + b22
   cc1 = args(r1, r2, p1, newTam, 1, 1); // p1 = (a11+a22) * (b11+b22)
-  task_dependency(continuation, enqueue(strassen_boxed, cc1));
+  t = generate_task(strassen_boxed, cc1);
+  task_dependency(continuation, t);
+  enqueue_task(t);
  
   sum(a21, a22, r3, newTam); // a21 + a22
   cc2 = args(r3, b11, p2, newTam, 1, 0); // p2 = (a21+a22) * (b11)
-  task_dependency(continuation, enqueue(strassen_boxed, cc2));
+  t = generate_task(strassen_boxed, cc2);
+  task_dependency(continuation, t);
+  enqueue_task(t);
  
   subtract(b12, b22, r4, newTam); // b12 - b22
   cc3 = args(a11, r4, p3, newTam, 0, 1); // p3 = (a11) * (b12 - b22)
-  task_dependency(continuation, enqueue(strassen_boxed, cc3));
+  t = generate_task(strassen_boxed, cc3);
+  task_dependency(continuation, t);
+  enqueue_task(t);
  
   subtract(b21, b11, r5, newTam); // b21 - b11
   cc4 = args(a22, r5, p4, newTam, 0, 1); // p4 = (a22) * (b21 - b11)
-  task_dependency(continuation, enqueue(strassen_boxed, cc4));
+  t = generate_task(strassen_boxed, cc4);
+  task_dependency(continuation, t);
+  enqueue_task(t);
  
   sum(a11, a12, r6, newTam); // a11 + a12
   cc5 = args(r6, b22, p5, newTam, 1, 0); // p5 = (a11+a12) * (b22) 
-  task_dependency(continuation, enqueue(strassen_boxed, cc5));  
+  t = generate_task(strassen_boxed, cc5);
+  task_dependency(continuation, t);
+  enqueue_task(t);
  
   subtract(a21, a11, r7, newTam); // a21 - a11
   sum(b11, b12, r8, newTam); // b11 + b12
   cc6 = args(r7, r8, p6, newTam, 1, 1); // p6 = (a21-a11) * (b11+b12)
-  task_dependency(continuation, enqueue(strassen_boxed, cc6));
+  t = generate_task(strassen_boxed, cc6);
+  task_dependency(continuation, t);
+  enqueue_task(t);
  
   subtract(a12, a22, r9, newTam); // a12 - a22
   sum(b21, b22, r10, newTam); // b21 + b22
   cc7 = args(r9, r10, p7, newTam, 1, 1); // p7 = (a12-a22) * (b21+b22)
-  task_dependency(continuation, enqueue(strassen_boxed, cc7));
+  t = generate_task(strassen_boxed, cc7);
+  task_dependency(continuation, t);
+  enqueue_task(t);
 
   free_real_matrix(a12, newTam);
   free_real_matrix(a21, newTam);
@@ -155,7 +170,9 @@ void strassen(double **a, double **b, double **c, int tam) {
 
 void strassen_continue(void *a) {
   struct strassen_continuation *args = a;
-  //printf("\n\e[32mcontinue\e[0m \e[3%dmlevel\e[0m %d\n", args->newTam, args->newTam);
+  //printf("\e[32mcontinue\e[0m ");
+  printf("\e[3%dmlevel\e[0m %d ", args->newTam, args->newTam);
+  if(args->newTam != MIN_BLOCK) printf("\n");
 
   int newTam = args->newTam;
   double **c = args->c;

@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
 #include <time.h>
 #include "scheduler.h"
 #include "strassen.h"
 
-#define MAT_DIMEN (1 << 10)
+#define MAT_DIMEN (1 << 8)
 #define MIN(x,y) (((x) < (y)) ? (x) : (y))
 
 void print_matrix(char* label, double **m);
@@ -20,6 +21,14 @@ void print_matrix(char* label, double **m) {
     }
     printf("\n");
   }
+}
+
+void * consume_tasks(void *v) {
+  while(has_task()) {
+    //printf("running subtask: ");
+    dequeue_and_run_task();
+  }
+  return NULL;
 }
 
 int main(void) {
@@ -46,10 +55,10 @@ int main(void) {
   strassen( a, b, c, MAT_DIMEN);
   printf("here\n");
   
-  while(has_task()) {
-    //printf("running subtask: ");
-    dequeue_and_run_task();
-  }
+  pthread_t thr;
+  pthread_create(&thr, NULL, &consume_tasks, NULL);
+  consume_tasks(NULL);
+  pthread_join(thr, NULL);
 
   time_t end = time(NULL);
   print_matrix("a", a);

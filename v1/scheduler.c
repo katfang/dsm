@@ -31,9 +31,12 @@ struct task * enqueue(void (*func)(void *), void *arg) {
   return enqueue_task(generate_task(func, arg));
 }
 
+int totaldeps = 0;
+
 void whatsgoinon() {
   struct task *n = head;
-  printf("\n[");
+  printf("\ntotaldeps: %d\n", totaldeps);
+  printf("[");
   while(n) {
     printf("%p, ", n);
     n = n->next;
@@ -48,10 +51,17 @@ void whatsgoinon() {
 }
 
 void task_dependency(struct task *parent, struct task *child) {
+  pthread_mutex_lock(&lock);
+  if(child->parent) {
+    printf("say what?! %p\n", child);
+    whatsgoinon();
+  }
   child->parent = parent;
   if(parent->deps++ > 10) {
     whatsgoinon();
   }
+  totaldeps++;
+  pthread_mutex_unlock(&lock);
 }
 
 void task_continues(struct task *cc) {
@@ -79,16 +89,18 @@ void dequeue_and_run_task() {
     n->next = 0;
     tail = &n->next;
     n = head;
-    if(first == n) whatsgoinon();
+    //if(first == n) whatsgoinon();
     head = head->next;
   }
   current = n;
   pthread_mutex_unlock(&lock);
   n->func(n->arg);
+  pthread_mutex_lock(&lock);
   if (n->parent) {
-    pthread_mutex_lock(&lock);
     n->parent->deps--;
-    pthread_mutex_unlock(&lock);
+    totaldeps--;
+    printf("%p->deps decremented to %d\n", n->parent, n->parent->deps);
   }
+  pthread_mutex_unlock(&lock);
   free(n);
 }

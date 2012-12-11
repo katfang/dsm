@@ -9,5 +9,8 @@ dsm_read_test
 strassen_test
 alloc_test
 lock_test
+strassen_dsm_test
 
 splash2/codes/Makefile.config
+
+*~

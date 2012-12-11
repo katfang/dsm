@@ -21,10 +21,11 @@ struct task * generate_task(void (*func)(void *, struct task *), void *arg) {
 struct task * enqueue_task(struct task *t) {
   pthread_mutex_lock(&lock);
   //printf("Enqueueing is hard. Let's go shopping %p\n", t);
-  //t->next = head;
-  //head = t;    
-    *tail = t;
-    tail = &t->next;
+  t->next = head;
+  if(!head) tail = &t->next;
+  head = t;    
+  //*tail = t;
+  //tail = &t->next;
   pthread_mutex_unlock(&lock);
   return t;
 }
@@ -35,6 +36,10 @@ struct task * enqueue(void (*func)(void *, struct task *), void *arg) {
 }
 
 int totaldeps = 0;
+
+void print_task(struct task *t) {
+  printf("%p {func: %p, deps: %d, parent %p}\n", t, t->func, t->deps, t->parent);
+}
 
 void whatsgoinon() {
   struct task *n = head;
@@ -47,7 +52,7 @@ void whatsgoinon() {
   printf("]\n");
   n = head;
   while(n) {
-    printf("%p {func: %p, deps: %d, parent %p}\n", n, n->func, n->deps, n->parent);
+    print_task(n);
     n = n->next;
   }
   exit(1);
@@ -75,25 +80,31 @@ int has_task() {
 // runs first unblocked task, freeing it afterwards
 void dequeue_and_run_task() {
   pthread_mutex_lock(&lock);
-  if(!head) return;
+  if(!head) goto end;
   struct task *n;
-  struct task *first;
   n = head;
   head = head->next;
-  // re-enqueue n if it has unresolved dependencies
-  first = n;
+
   while(n->deps) { 
+    // re-enqueue n if it has unresolved dependencies
+    //printf("reenqueue\n");
     *tail = n;
     n->next = 0;
     tail = &n->next;
-    n = head;
-    //if(first == n) whatsgoinon();
-    head = head->next;
+    if(!head) head = n;
+
     pthread_mutex_unlock(&lock);
     pthread_yield();
     pthread_mutex_lock(&lock);
+
+    if(head) {
+      n = head;
+      head = head->next;
+    }
+    else goto end;
   }
   pthread_mutex_unlock(&lock);
+  //print_task(n);
   n->func(n->arg, n);
   pthread_mutex_lock(&lock);
   if (n->parent) {
@@ -101,6 +112,7 @@ void dequeue_and_run_task() {
     totaldeps--;
     //printf("%p->deps decremented to %d\n", n->parent, n->parent->deps);
   }
-  pthread_mutex_unlock(&lock);
   free(n);
+    end:
+  pthread_mutex_unlock(&lock);
 }

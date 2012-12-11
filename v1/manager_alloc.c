@@ -6,64 +6,64 @@
 #define PAGE_IN_USE 0x1 
 #define END_FREE_LIST (void*) 0x2
 
-pthread_mutex_t map_alloc_started_lock = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t map_alloc_started_cond = PTHREAD_COND_INITIALIZER;
-static int map_alloc_thread_initialized = 0;
+pthread_mutex_t alloc_started_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t alloc_started_cond = PTHREAD_COND_INITIALIZER;
+static int alloc_thread_initialized = 0;
 
-pthread_mutex_t map_alloc_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t alloc_lock = PTHREAD_MUTEX_INITIALIZER;
 
 struct DataTable *free_table; // does the pointer hopping thing
 void *free_page = END_FREE_LIST;
 
-void start_map_alloc(void);
-void * map_alloc_thread(void *xa);
-void process_map_alloc(struct MapAllocMessage *msg);
-void process_malloc(struct MapAllocMessage *msg);
-void process_dsm_open(struct MapAllocMessage *msg);
+void start_alloc(void);
+void * alloc_thread(void *xa);
+void process_alloc(struct AllocMessage *msg);
+void process_malloc(struct AllocMessage *msg);
+void process_dsm_open(struct AllocMessage *msg);
 
-void start_map_alloc(void) {
+void start_alloc(void) {
   pthread_t tha;
   
   // free_table[addr] = next free addr
   free_table = alloc_data_table();
   free_table->do_get_faults = 0;
   
-  pthread_mutex_lock(&map_alloc_started_lock);
-  if (pthread_create(&tha, NULL, map_alloc_thread, NULL) == 0) {
-    while(!map_alloc_thread_initialized) pthread_cond_wait(&map_alloc_started_cond, &map_alloc_started_lock);
-    pthread_mutex_unlock(&map_alloc_started_lock);
+  pthread_mutex_lock(&alloc_started_lock);
+  if (pthread_create(&tha, NULL, alloc_thread, NULL) == 0) {
+    while(!alloc_thread_initialized) pthread_cond_wait(&alloc_started_cond, &alloc_started_lock);
+    pthread_mutex_unlock(&alloc_started_lock);
   } else {
-    pthread_mutex_unlock(&map_alloc_started_lock);
-    DEBUG_LOG("Error starting map_alloc thread.");
+    pthread_mutex_unlock(&alloc_started_lock);
+    DEBUG_LOG("Error starting alloc thread.");
   }
 
-  DEBUG_LOG("map_alloc started.");
+  DEBUG_LOG("alloc started.");
 }
 
-void * map_alloc_thread(void *xa) {
-  int map_alloc_sockfd;
+void * alloc_thread(void *xa) {
+  int alloc_sockfd;
   
-  pthread_mutex_lock(&map_alloc_started_lock);
+  pthread_mutex_lock(&alloc_started_lock);
 
   // open socket
-  map_alloc_sockfd = open_serv_socket(ports[0].map_alloc_port); 
+  alloc_sockfd = open_serv_socket(ports[0].alloc_port); 
   
   // let everyone know we're done initializing
-  map_alloc_thread_initialized = 1;
-  pthread_cond_broadcast(&map_alloc_started_cond);
-  pthread_mutex_unlock(&map_alloc_started_lock);
+  alloc_thread_initialized = 1;
+  pthread_cond_broadcast(&alloc_started_cond);
+  pthread_mutex_unlock(&alloc_started_lock);
 
   // actually start listening on the socket.
-  struct MapAllocMessage *msg;
-  while (msg = recvMapAllocMsg(map_alloc_sockfd)) {
-    process_map_alloc(msg);
+  struct AllocMessage *msg;
+  while (msg = recvAllocMsg(alloc_sockfd)) {
+    process_alloc(msg);
     free(msg);
   }
 
   return NULL;
 }
 
-void process_map_alloc(struct MapAllocMessage *msg) {
+void process_alloc(struct AllocMessage *msg) {
   if (msg->type == MALLOC) {
     process_malloc(msg);
   } else if (msg->type == DSM_OPEN) {  
@@ -71,16 +71,16 @@ void process_map_alloc(struct MapAllocMessage *msg) {
   }
 }
 
-void process_malloc(struct MapAllocMessage *msg) {
+void process_malloc(struct AllocMessage *msg) {
   DEBUG_LOG("Processing \e[34mmalloc\e[0m for %lu bytes", msg->size);
   // make response message
-  struct MapAllocMessage resp_msg;
+  struct AllocMessage resp_msg;
   resp_msg.type = MALLOC_RESPONSE;
   resp_msg.size = msg->size;
 
   // if greater than a page
   // TODO REVIEW THIS CODE
-  pthread_mutex_lock(&map_alloc_lock);
+  pthread_mutex_lock(&alloc_lock);
     
   // 'start' = one BEFORE the start of the continuous block
   // 'prev' = one BEFORE curr, last page added to continuous strand
@@ -134,8 +134,8 @@ void process_malloc(struct MapAllocMessage *msg) {
   
  send_malloc_response:
   // send off the message
-  pthread_mutex_unlock(&map_alloc_lock);
-  sendMapAllocMessage(&resp_msg, msg->from);
+  pthread_mutex_unlock(&alloc_lock);
+  sendAllocMessage(&resp_msg, msg->from);
   if (resp_msg.size > 0) {
     DEBUG_LOG("malloc processed. %lu bytes at %p malloc'd to %lu",
       resp_msg.size, resp_msg.pg_address, msg->from);
@@ -145,12 +145,12 @@ void process_malloc(struct MapAllocMessage *msg) {
   }
 }
 
-void process_dsm_open(struct MapAllocMessage *msg) {
+void process_dsm_open(struct AllocMessage *msg) {
   DEBUG_LOG("processing \e[34mdsm_open\e[0m at %p for %lu from %lu", msg->pg_address, msg->size, msg->from);
   assert((long) msg->pg_address % PGSIZE == 0);
   assert(msg->size % PGSIZE == 0);
 
-  pthread_mutex_lock(&map_alloc_lock);
+  pthread_mutex_lock(&alloc_lock);
 
   void *addr, *next;
   void *max_addr = msg->pg_address + msg->size - PGSIZE; 
@@ -171,10 +171,10 @@ void process_dsm_open(struct MapAllocMessage *msg) {
     }
   }
   
-  pthread_mutex_unlock(&map_alloc_lock);
+  pthread_mutex_unlock(&alloc_lock);
 
   // reply with open successful
   msg->type = DSM_OPEN_RESPONSE;
-  sendMapAllocMessage(msg, msg->from);
+  sendAllocMessage(msg, msg->from);
   DEBUG_LOG("finished processing dsm_open at %p for %lu from %lu", msg->pg_address, msg->size, msg->from);
 }

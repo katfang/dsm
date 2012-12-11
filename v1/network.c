@@ -110,9 +110,9 @@ struct RequestPageMessage *recvReqPgMsg(int sockfd) {
     RequestPageMessage));
 }
 
-struct MapAllocMessage *recvMapAllocMsg(int sockfd) {
-  return (struct MapAllocMessage *) recvMsg(sockfd, sizeof(struct
-    MapAllocMessage));
+struct AllocMessage *recvAllocMsg(int sockfd) {
+  return (struct AllocMessage *) recvMsg(sockfd, sizeof(struct
+    AllocMessage));
 }
 
 static void sendMsg(client_id_t id, char *msg, int port, int length) {
@@ -152,6 +152,6 @@ int sendPgInfoMsg(struct PageInfoMessage *msg, client_id_t id) {
   sendMsg(id, (char*) msg, ports[id].info_port, sizeof(struct PageInfoMessage));
 }
 
-int sendMapAllocMessage(struct MapAllocMessage* msg, client_id_t id) {
-  sendMsg(id, (char*) msg, ports[id].map_alloc_port, sizeof(struct MapAllocMessage));
+int sendAllocMessage(struct AllocMessage* msg, client_id_t id) {
+  sendMsg(id, (char*) msg, ports[id].alloc_port, sizeof(struct AllocMessage));
 }

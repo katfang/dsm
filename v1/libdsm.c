@@ -15,7 +15,7 @@
 #define DEBUG 1
 
 static int pg_info_fd;
-static int map_alloc_fd;
+static int alloc_fd;
 static client_id_t id;
 
 // for handling the service thread 
@@ -266,7 +266,7 @@ void dsm_init(client_id_t myId) {
 
   // make the socket for info messages
   pg_info_fd = open_serv_socket(ports[id].info_port);
-  map_alloc_fd = open_serv_socket(ports[id].map_alloc_port);
+  alloc_fd = open_serv_socket(ports[id].alloc_port);
 }
 
 /** Opens a new distributed shared memory object. */
@@ -278,13 +278,13 @@ void * dsm_open(void *addr, size_t size) {
   }
 
   // ask the host to open
-  struct MapAllocMessage msg;
+  struct AllocMessage msg;
   msg.type = DSM_OPEN;
   msg.pg_address = addr;
   msg.size = size;
   msg.from = id;
-  sendMapAllocMessage(&msg, 0);
-  recvMapAllocMsg(map_alloc_fd);
+  sendAllocMessage(&msg, 0);
+  recvAllocMsg(alloc_fd);
 
   // set up the memory mapping 
   void *result = mmap(addr, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -304,15 +304,15 @@ void * dsm_malloc(size_t size) {
 
   // send off message
   DEBUG_LOG("mallocing %lu bytes", size);
-  struct MapAllocMessage msg;
+  struct AllocMessage msg;
   msg.type = MALLOC;
   msg.size = size;
   msg.from = id;
-  sendMapAllocMessage(&msg, 0);
+  sendAllocMessage(&msg, 0);
 
   // get the location
-  struct MapAllocMessage *resp_msg;
-  resp_msg = recvMapAllocMsg(map_alloc_fd);
+  struct AllocMessage *resp_msg;
+  resp_msg = recvAllocMsg(alloc_fd);
   addr = resp_msg->pg_address;
   if (resp_msg->size > 0) {
     DEBUG_LOG("malloc'd %lu bytes at %p", 

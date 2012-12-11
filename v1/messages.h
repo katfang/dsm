@@ -31,7 +31,7 @@ struct PageInfoMessage {
 };
 
 /** Used for dsm_malloc, dsm_open */
-struct MapAllocMessage {
+struct AllocMessage {
   enum msg_t type;
   void *pg_address;
   size_t size;

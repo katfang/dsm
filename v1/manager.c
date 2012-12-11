@@ -22,7 +22,7 @@
 #include "pagedata.h"
 #include "pagelocks.h"
 
-#include "manager_map_alloc.c"
+#include "manager_alloc.c"
 
 #define DEBUG 1
 
@@ -176,7 +176,7 @@ void start_ack_thread(void) {
 int main(void) {
   // start the ack thread
   start_ack_thread();
-  start_map_alloc();
+  start_alloc();
 
   // start the table to keep track of who's the owner
   // and the copyset

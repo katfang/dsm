@@ -9,7 +9,7 @@
 struct PortInfo {
   int info_port;
   int req_port;
-  int map_alloc_port;
+  int alloc_port;
 };
 
 extern char *ips[];
@@ -20,10 +20,10 @@ int open_socket(char *host, int port);
 
 struct PageInfoMessage *recvPgInfoMsg(int sockfd);
 struct RequestPageMessage *recvReqPgMsg(int sockfd);
-struct MapAllocMessage *recvMapAllocMsg(int sockfd);
+struct AllocMessage *recvAllocMsg(int sockfd);
 int sendReqPgMsg(struct RequestPageMessage *msg, client_id_t id);
 int sendAckMsg(struct RequestPageMessage *msg, client_id_t id);
 int sendPgInfoMsg(struct PageInfoMessage *msg, client_id_t id);
-int sendMapAllocMessage(struct MapAllocMessage *msg, client_id_t id);
+int sendAllocMessage(struct AllocMessage *msg, client_id_t id);
 
 #endif

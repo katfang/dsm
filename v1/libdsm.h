@@ -1,3 +1,6 @@
+#ifndef _LIBDSM_H
+#define _LIBDSM_H
+
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -18,3 +21,5 @@ void * dsm_open(void * addr, size_t size);
 void * dsm_malloc(size_t size);
 void * dsm_reserve(void * addr, size_t size);
 void dsm_free(void * addr, size_t size);
+
+#endif // _LIBDSM_H

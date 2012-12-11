@@ -7,6 +7,6 @@ manager
 dsm_test
 dsm_read_test
 strassen_test
-map_alloc_test 
+map_alloc_test
 
 splash2/codes/Makefile.config

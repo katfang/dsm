@@ -8,6 +8,7 @@
 
 #define head (*(struct task **)(SCHED_PAGE + 0x88))
 #define tail (*(struct task ***)(SCHED_PAGE + 0x90))
+#define waiting (*(int *)(SCHED_PAGE + 0x98))
 
 struct task * generate_task(void (*func)(void *, struct task *), void *arg) {
   struct task *t = dsm_malloc(sizeof(struct task));
@@ -21,7 +22,7 @@ struct task * generate_task(void (*func)(void *, struct task *), void *arg) {
 
 struct task * enqueue_task(struct task *t) {
   pthread_mutex_lock(SCHED_LOCK);
-  //printf("Enqueueing is hard. Let's go shopping %p\n", t);
+  //printf("Queues are hard. Let's go shopping %p\n", t);
   t->next = head;
   if(!head) tail = &t->next;
   head = t;    
@@ -42,7 +43,7 @@ void print_task(struct task *t) {
   printf("%p {func: %p, deps: %d, parent %p}\n", t, t->func, t->deps, t->parent);
 }
 
-void whatsgoinon() {
+void whats_goin_on() {
   struct task *n = head;
   printf("\ntotaldeps: %d\n", totaldeps);
   printf("[");
@@ -63,11 +64,11 @@ void task_dependency(struct task *parent, struct task *child) {
   pthread_mutex_lock(SCHED_LOCK);
   if(child->parent) {
     printf("say what?! %p\n", child);
-    whatsgoinon();
+    whats_goin_on();
   }
   child->parent = parent;
   if(parent->deps++ > 10) {
-    whatsgoinon();
+    whats_goin_on();
   }
   totaldeps++;
   //printf("%p->deps incremented to %d\n", parent, parent->deps);
@@ -85,6 +86,7 @@ void dequeue_and_run_task() {
   struct task *n;
   n = head;
   head = head->next;
+  struct task *first = n;
 
   while(n->deps) { 
     // re-enqueue n if it has unresolved dependencies
@@ -95,7 +97,9 @@ void dequeue_and_run_task() {
     if(!head) head = n;
 
     pthread_mutex_unlock(SCHED_LOCK);
-    pthread_yield();
+    do { 
+      pthread_yield();
+    } while(waiting);
     pthread_mutex_lock(SCHED_LOCK);
 
     if(head) {
@@ -103,6 +107,11 @@ void dequeue_and_run_task() {
       head = head->next;
     }
     else goto end;
+
+    if (first == n) {
+      //printf("spun through list\n");
+      waiting = 1;
+    }
   }
   pthread_mutex_unlock(SCHED_LOCK);
   //print_task(n);
@@ -113,6 +122,7 @@ void dequeue_and_run_task() {
     totaldeps--;
     //printf("%p->deps decremented to %d\n", n->parent, n->parent->deps);
   }
+  waiting = 0;
   dsm_free(n, sizeof(struct task));
     end:
   pthread_mutex_unlock(SCHED_LOCK);

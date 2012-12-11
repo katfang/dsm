@@ -8,5 +8,6 @@ dsm_test
 dsm_read_test
 strassen_test
 alloc_test
+lock_test
 
 splash2/codes/Makefile.config

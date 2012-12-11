@@ -379,3 +379,31 @@ void dsm_free(void *addr, size_t size) {
   free(resp_msg);
 }
 
+int dsm_lock_init(void *addr) {
+  if (!dsm_initialized) {
+    DEBUG_LOG("ERROR: dsm_lock_init() called without dsm_init()");
+    // TODO check for dsm_reerve as well
+    exit(1);
+  }
+
+  struct AllocMessage msg;
+  msg.type = LOCK_INIT;
+  msg.pg_address = addr;
+  msg.from = id;
+  sendAllocMessage(&msg, 0);
+
+  // get response
+  struct AllocMessage *resp_msg = recvAllocMsg(alloc_fd);
+  
+  // check if you are the one who needs to init.
+  if (resp_msg->type == LOCK_INIT) {
+    int r = mprotect(addr, PGSIZE, PROT_READ | PROT_WRITE);
+    pthread_mutex_init( (pthread_mutex_t *) addr, NULL);
+    msg.type = LOCK_MADE;
+    sendAllocMessage(&msg, 0); 
+    // don't need to wait for resp because not getting one
+  }
+  
+  free(resp_msg);
+  return 0;
+}

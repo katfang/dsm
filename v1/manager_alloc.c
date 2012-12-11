@@ -1,10 +1,17 @@
+/** Actually deals with allocs and locks. */
+
 #include <pthread.h>
 
 #include "debug.h"
 
 #define DEBUG 1
-#define PAGE_IN_USE (void*) 0x1 
-#define END_FREE_LIST (void*) 0x2
+#define END_FREE_LIST (void*) 0x1
+#define PAGE_IN_USE (void*) 0x2
+#define PAGE_IS_LOCK_INIT (void*) 0x3
+#define PAGE_IS_LOCK (void*) 0x4
+#define PAGE_IS_RESERVED (void*) 0x5
+
+extern struct DataTable *owner_table;
 
 pthread_mutex_t alloc_started_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t alloc_started_cond = PTHREAD_COND_INITIALIZER;
@@ -17,11 +24,14 @@ void *free_page = END_FREE_LIST;
 
 void start_alloc(void);
 void * alloc_thread(void *xa);
+void * process_alloc_thread(void *xa);
 void process_alloc(struct AllocMessage *msg);
 void process_malloc(struct AllocMessage *msg);
 void process_dsm_open(struct AllocMessage *msg);
 void process_reserve(struct AllocMessage *msg);
 void process_free(struct AllocMessage *msg);
+void process_lock_init(struct AllocMessage *msg);
+void process_lock_made(struct AllocMessage *msg);
 
 void start_alloc(void) {
   pthread_t tha;
@@ -57,12 +67,22 @@ void * alloc_thread(void *xa) {
 
   // actually start listening on the socket.
   struct AllocMessage *msg;
+  pthread_t tha;
   while (msg = recvAllocMsg(alloc_sockfd)) {
-    process_alloc(msg);
-    free(msg);
+    if (pthread_create(&tha, NULL, process_alloc_thread, msg) < 0) {
+      DEBUG_LOG("Error spawning alloc thread.");
+    } 
   }
 
   return NULL;
+}
+
+void * process_alloc_thread(void *xa) {
+  DEBUG_LOG(">>>>> Spawned thread to process alloc request.");
+  struct AllocMessage *msg = (struct AllocMessage *) xa;
+  process_alloc(msg);
+  free(msg);
+  DEBUG_LOG("<<<<< Finished processing an alloc request.");
 }
 
 void process_alloc(struct AllocMessage *msg) {
@@ -78,6 +98,12 @@ void process_alloc(struct AllocMessage *msg) {
     break;
   case FREE:
     process_free(msg);
+    break;
+  case LOCK_INIT:
+    process_lock_init(msg);
+    break;
+  case LOCK_MADE:
+    process_lock_made(msg);
     break;
   }
 }
@@ -170,6 +196,7 @@ void process_dsm_open(struct AllocMessage *msg) {
   // TODO ^ round up max_addr instead of having asserts
 
   for (addr = max_addr; addr >= msg->pg_address; addr -= PGSIZE) {
+    DEBUG_LOG("processing dsm_open for addr: %p", addr);
     if (get_page_data(free_table, addr, (data_t*) &next) < 0) {
       DEBUG_LOG("Error in getting free table data.");
       continue;
@@ -181,7 +208,7 @@ void process_dsm_open(struct AllocMessage *msg) {
       get_page_data(free_table, addr, (data_t*) &next);
       DEBUG_LOG("%p's next set to: %p", addr, next);
       free_page = addr; 
-    }
+    } 
   }
   
   pthread_mutex_unlock(&alloc_lock);
@@ -210,26 +237,21 @@ void process_reserve(struct AllocMessage *msg) {
     
     // memory hasn't been seen yet, just set to in use.
     if (next == 0x0) { 
-      set_page_data(free_table, addr, (data_t) PAGE_IN_USE);
-    } else if (next == PAGE_IN_USE) { 
-      // memory is already in use and can't be malloc'd already.
-  
-    // else, memory was known by allocator, need to fix
-    } else { 
-      set_page_data(free_table, addr, (data_t) PAGE_IN_USE);
-
-      // TODO free table should be a doubly linked list. We're just guessing at the previous value here...  
-      // TODO this will work until we implement dsm_free()
-      get_page_data(free_table, addr - PGSIZE, (data_t*) &a);
-      if (a == addr) {
-        set_page_data(free_table, addr - PGSIZE, (data_t) next);
-      }
-    }
+      set_page_data(free_table, addr, (data_t) PAGE_IS_RESERVED);
+    } else if (next == PAGE_IS_RESERVED || next == PAGE_IS_LOCK 
+                                        || next == PAGE_IS_LOCK_INIT) { 
+      DEBUG_LOG("Memory already reserved.");
+    } else {
+      // TODO: could potentially figure out where it is in the free table
+      // with a doubly linked list and take it out as part of a hole.
+      DEBUG_LOG("Memory is already 'open'd for mallc. Cannot reserve.");
+      exit(1); 
+    } 
   }
   
   pthread_mutex_unlock(&alloc_lock);
 
-  // reply with open successful
+  // reply with reserve successful
   msg->type = RESERVE_RESPONSE;
   sendAllocMessage(msg, msg->from);
   DEBUG_LOG("finished processing reserve at %p for %lu from %lu", msg->pg_address, msg->size, msg->from);
@@ -268,4 +290,40 @@ void process_free(struct AllocMessage *msg) {
   msg->type = FREE_RESPONSE;
   sendAllocMessage(msg, msg->from);
   DEBUG_LOG("finished processing free at %p for %lu from %lu", msg->pg_address, msg->size, msg->from);
+}
+
+/** Assumption is that ALL processes think this is a lock and 
+ *  NO process could possibly try to use it as something else. */
+void process_lock_init(struct AllocMessage *msg) {
+  void *addr = msg->pg_address, *next;
+  struct AllocMessage resp_msg;
+  resp_msg.pg_address = addr;
+
+  page_lock(addr);
+  pthread_mutex_lock(&alloc_lock);
+
+  if (get_page_data(free_table, addr, (data_t*) &next) < 0) {
+    DEBUG_LOG("Error in getting free table data.");
+  }
+
+  if (next == PAGE_IS_RESERVED) {
+    set_page_data(free_table, addr, (data_t) PAGE_IS_LOCK_INIT);
+    set_page_data(owner_table, msg->pg_address, msg->from); // TODO this doesn't work probably
+
+    resp_msg.type = LOCK_INIT;
+  } else if (next == PAGE_IS_LOCK_INIT || next == PAGE_IS_LOCK) {
+    page_unlock(addr);
+    resp_msg.type = LOCK_MADE;
+  }
+  
+ send_lock_resp:
+  pthread_mutex_unlock(&alloc_lock);
+  sendAllocMessage(&resp_msg, msg->from);
+}
+
+void process_lock_made(struct AllocMessage *msg) {
+  pthread_mutex_lock(&alloc_lock);
+  set_page_data(free_table, msg->pg_address, (data_t) PAGE_IS_LOCK);
+  page_unlock(msg->pg_address); // now other pages can access it to lock it
+  pthread_mutex_unlock(&alloc_lock);
 }

@@ -16,7 +16,9 @@ enum msg_t {
   RESERVE,
   RESERVE_RESPONSE,
   FREE,
-  FREE_RESPONSE
+  FREE_RESPONSE,
+  LOCK_INIT,
+  LOCK_MADE
 };
 
 #pragma pack(push)
@@ -34,7 +36,7 @@ struct PageInfoMessage {
   char pg_contents[PGSIZE];
 };
 
-/** Used for dsm_malloc, dsm_open */
+/** Used for dsm_malloc, dsm_open, dsm_lock_init, etc. */
 struct AllocMessage {
   enum msg_t type;
   void *pg_address;

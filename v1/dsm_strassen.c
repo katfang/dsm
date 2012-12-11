@@ -12,7 +12,7 @@
 #include "strassen.h"
 #include "scheduler.h"
 
-#define MIN_BLOCK (1 << 6)
+#define MIN_BLOCK (1 << 3)
  
 void mmult(double **a, double **b, double **c, int tam);
 void strassen(double **a, double **b, double **c, int tam, struct task *t);
@@ -100,7 +100,7 @@ void strassen(double **a, double **b, double **c, int tam, struct task *cur) {
   }
 
   struct strassen_continuation *cc =
-    malloc(sizeof(struct strassen_continuation));
+    dsm_malloc(sizeof(struct strassen_continuation));
   struct task *continuation = generate_task(strassen_continue, cc);
 
   struct strassen_args *cc1, *cc2, *cc3, *cc4, *cc5, *cc6, *cc7;
@@ -274,7 +274,7 @@ void subtract(double **a, double **b, double **result, int tam) {
 /*------------------------------*/
 struct strassen_args *args(double **a, double **b, double **c,
 			   int tam, int freea, int freeb) {
-  struct strassen_args *cc = malloc(sizeof(struct strassen_args));
+  struct strassen_args *cc = dsm_malloc(sizeof(struct strassen_args));
   cc->a = a;
   cc->b = b;
   cc->c = c;

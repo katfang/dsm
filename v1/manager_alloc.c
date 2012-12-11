@@ -179,7 +179,7 @@ void process_malloc(struct AllocMessage *msg) {
       resp_msg.size, resp_msg.pg_address, msg->from);
   } else {
     DEBUG_LOG("malloc for %lu bytes from %lu failed. Not enough bytes.",
-      resp_msg.size, msg->from);
+      msg->size, msg->from);
   }
 }
 
@@ -261,12 +261,16 @@ void process_reserve(struct AllocMessage *msg) {
 void process_free(struct AllocMessage *msg) {
   DEBUG_LOG("processing \e[34mfree\e[0m at %p for %lu from %lu", msg->pg_address, msg->size, msg->from);
   assert((long) msg->pg_address % PGSIZE == 0);
-  assert(msg->size % PGSIZE == 0);
+
+  size_t size = msg->size;
+  if (msg->size % PGSIZE != 0) {
+    size = ((msg->size / PGSIZE) + 1) * PGSIZE;
+  }
 
   pthread_mutex_lock(&alloc_lock);
 
   void *addr, *next;
-  void *max_addr = msg->pg_address + msg->size - PGSIZE; 
+  void *max_addr = msg->pg_address + size - PGSIZE;
   // TODO ^ round up max_addr instead of having asserts
 
   for (addr = max_addr; addr >= msg->pg_address; addr -= PGSIZE) {

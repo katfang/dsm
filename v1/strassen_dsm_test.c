@@ -3,11 +3,14 @@
 #include <pthread.h>
 #include <time.h>
 
+#include "debug.h"
 #include "libdsm.h"
 #include "dsm_scheduler.h"
 #include "strassen.h"
 
-#define MAT_DIMEN (1 << 10)
+#define DEBUG 1
+
+#define MAT_DIMEN (1 << 5)
 #define MIN(x,y) (((x) < (y)) ? (x) : (y))
 
 void print_matrix(char* label, double **m);
@@ -45,6 +48,7 @@ int main(int argc, char *argv[]) {
   dsm_init(id);
 
   dsm_reserve(SCHED_PAGE, 0x1000);
+  DEBUG_LOG("GETTING %d SPACE", DATA_SIZE);
   dsm_open(DATA_SPACE, DATA_SIZE);
   dsm_lock_init(MASTER_LOCK);
   printf("init'd masterlock\n");

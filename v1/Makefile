@@ -23,9 +23,9 @@ alloc_test: alloc_test.c libdsm.h network.h pagelocks.h pagedata.h copyset.h $(d
 strassen_test: scheduler.c strassen.c strassen_test.c
 	$(CC) -pthread strassen_test.c strassen.c scheduler.c -o strassen_test
 
-strassen_dsm_test: libdsm.h dsm_scheduler.c dsm_strassen.c strassen_dsm_test.c
+strassen_dsm_test: libdsm.h dsm_scheduler.c dsm_strassen.c strassen_dsm_test.c dsm_scheduler.h
 	$(CC) -pthread strassen_dsm_test.c dsm_strassen.c dsm_scheduler.c $(dsm_objects) -o strassen_dsm_test
 
 .PHONY: clean
 clean:
-	rm -f *.o dsm_test dsm_read_test faulthandler manager strassen_test alloc_test lock_test /dev/shm/blah
+	rm -f *.o dsm_test dsm_read_test faulthandler manager strassen_test alloc_test lock_test strassen_dsm_test /dev/shm/blah

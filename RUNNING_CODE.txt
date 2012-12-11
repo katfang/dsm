@@ -1,6 +1,9 @@
+=== General notes
+* The manager always needs to be run first. 
+* The system can work with AT MOST 5 clients.
+* The network IPs and ports are set in network.h
 
-
-Read/Write Testing
+=== Read/Write Testing
 
 We have the following simple test to show that multiple processes can
 make progress while writing to the same page.  To run it, start three
@@ -14,7 +17,7 @@ The manager simply spawns the manager thread while the other two
 processes actually do the work.  The program can support up to 5 such
 writers.
 
-Open/Malloc Testing
+=== Open/Malloc Testing
 
 We wrote a small program in order to test that the simple malloc
 algorithm was capable of allocating sections of memory. This is run
@@ -23,3 +26,12 @@ similarly to the above dsm_test.
   $ ./manager
   $ ./alloc_test 1
   $ ./alloc_test 2
+
+=== Lock Testing
+
+This program demonstrates the ability to create a pthread_mutex_t lock that lives in shared memory. The program asks the user to lock / release the lock so that different locking situations can be simulated. 
+
+  $ ./manager
+  $ ./lock_test 1
+  $ ./lock_test 2
+  $ ./lock_test 3

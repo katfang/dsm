@@ -1,6 +1,6 @@
 # Sorry guys I messed everything up and ruined everything.  I'll fix it some day
 
-CC=gcc -ggdb 
+CC=gcc -ggdb -pg 
 
 dsm_objects = libdsm.o network.o pagelocks.o 
 manager_objects = pagedata.o copyset.o network.o manager.o pagelocks.o

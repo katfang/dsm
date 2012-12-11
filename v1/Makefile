@@ -6,7 +6,7 @@ dsm_objects = libdsm.o network.o pagelocks.o
 manager_objects = pagedata.o copyset.o network.o manager.o pagelocks.o
 
 .PHONY: all
-all: dsm_test manager strassen_test
+all: dsm_test manager strassen_test map_alloc_test
 
 manager: pagelocks.h pagedata.h network.h copyset.h $(manager_objects)
 	$(CC) -o manager $(manager_objects) -lpthread
@@ -17,6 +17,9 @@ dsm_test: dsm_test.c libdsm.h network.h pagelocks.h pagedata.h copyset.h  $(dsm_
 strassen_test: scheduler.c strassen.c strassen_test.c
 	$(CC) strassen_test.c strassen.c scheduler.c -o strassen_test
 
+map_alloc_test: map_alloc_test.c libdsm.h network.h pagelocks.h pagedata.h copyset.h $(dsm_objects)
+	$(CC) -pthread map_alloc_test.c $(dsm_objects) -o map_alloc_test -lrt
+
 .PHONY: clean
 clean:
-	rm -f *.o dsm_test dsm_read_test faulthandler manager strassen_test /dev/shm/blah
+	rm -f *.o dsm_test dsm_read_test faulthandler manager strassen_test map_alloc_test /dev/shm/blah

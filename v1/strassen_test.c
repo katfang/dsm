@@ -9,14 +9,13 @@
 #define MIN(x,y) (((x) < (y)) ? (x) : (y))
 
 void print_matrix(char* label, double **m);
-int main(void);
 
 void print_matrix(char* label, double **m) {
   int i, j;
 
   printf("%s:\n", label);
-  for (i = 0; i < MIN(MAT_DIMEN, MAT_DIMEN); i++) {
-    for (j = 0; j < MIN(MAT_DIMEN, MAT_DIMEN); j++) {
+  for (i = 0; i < MIN(MAT_DIMEN, 4); i++) {
+    for (j = 0; j < MIN(MAT_DIMEN, 4); j++) {
       printf("%d ", (int)m[i][j]);
     }
     printf("\n");
@@ -31,7 +30,7 @@ void * consume_tasks(void *v) {
   return NULL;
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
   double **a, **b, **c;
   int i = 0, j = 0;
   srand(123);
@@ -54,11 +53,16 @@ int main(void) {
   printf("here\n");
   strassen( a, b, c, MAT_DIMEN, NULL);
   printf("here\n");
-  
-  pthread_t thr;
-  pthread_create(&thr, NULL, &consume_tasks, NULL);
+
+  pthread_t thr;  
+  if(argc == 2 && atoi(argv[1]) == 2) {
+    printf("spawning\n");
+    pthread_create(&thr, NULL, &consume_tasks, NULL);
+  }
   consume_tasks(NULL);
-  pthread_join(thr, NULL);
+  if(argc == 2 && atoi(argv[1]) == 2) {
+    pthread_join(thr, NULL);
+  }
 
   time_t end = time(NULL);
   print_matrix("a", a);

@@ -21,10 +21,11 @@ struct task * generate_task(void (*func)(void *, struct task *), void *arg) {
 struct task * enqueue_task(struct task *t) {
   pthread_mutex_lock(&lock);
   //printf("Enqueueing is hard. Let's go shopping %p\n", t);
-  //t->next = head;
-  //head = t;    
-  *tail = t;
-  tail = &t->next;
+  t->next = head;
+  if(!head) tail = &t->next;
+  head = t;    
+  //*tail = t;
+  //tail = &t->next;
   pthread_mutex_unlock(&lock);
   return t;
 }
@@ -86,9 +87,11 @@ void dequeue_and_run_task() {
 
   while(n->deps) { 
     // re-enqueue n if it has unresolved dependencies
+    //printf("reenqueue\n");
     *tail = n;
     n->next = 0;
     tail = &n->next;
+    if(!head) head = n;
 
     pthread_mutex_unlock(&lock);
     pthread_yield();
@@ -98,7 +101,7 @@ void dequeue_and_run_task() {
       n = head;
       head = head->next;
     }
-    else goto end;     
+    else goto end;
   }
   pthread_mutex_unlock(&lock);
   //print_task(n);

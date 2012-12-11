@@ -1,0 +1,25 @@
+
+
+Read/Write Testing
+
+We have the following simple test to show that multiple processes can
+make progress while writing to the same page.  To run it, start three
+different processes (from separate terminals) as follows:
+
+  $ ./manager
+  $ ./dsm_test 1
+  $ ./dsm_test 2
+
+The manager simply spawns the manager thread while the other two
+processes actually do the work.  The program can support up to 5 such
+writers.
+
+Open/Malloc Testing
+
+We wrote a small program in order to test that the simple malloc
+algorithm was capable of allocating sections of memory. This is run
+similarly to the above dsm_test. 
+
+  $ ./manager
+  $ ./alloc_test 1
+  $ ./alloc_test 2

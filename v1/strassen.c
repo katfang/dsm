@@ -171,8 +171,8 @@ void strassen(double **a, double **b, double **c, int tam, struct task *cur) {
 void strassen_continue(void *a, struct task *t) {
   struct strassen_continuation *args = a;
   //printf("\e[32mcontinue\e[0m ");
-  printf("\e[3%dmlevel\e[0m %d ", args->newTam, args->newTam);
-  if(args->newTam != MIN_BLOCK) printf("\n");
+  //printf("\e[3%dmlevel\e[0m %d ", args->newTam, args->newTam);
+  //if(args->newTam != MIN_BLOCK) printf("\n");
 
   int newTam = args->newTam;
   double **c = args->c;

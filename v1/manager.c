@@ -22,6 +22,8 @@
 #include "pagedata.h"
 #include "pagelocks.h"
 
+#include "manager_map_alloc.c"
+
 #define DEBUG 1
 
 pthread_mutex_t manager_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -174,6 +176,7 @@ void start_ack_thread(void) {
 int main(void) {
   // start the ack thread
   start_ack_thread();
+  start_map_alloc();
 
   // start the table to keep track of who's the owner
   // and the copyset

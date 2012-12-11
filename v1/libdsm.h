@@ -15,3 +15,4 @@
 
 void dsm_init(client_id_t myId);
 void * dsm_open(void * addr, size_t size);
+void * dsm_malloc(size_t size);

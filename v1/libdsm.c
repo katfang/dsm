@@ -12,15 +12,17 @@
 #include "network.h"
 #include "pagelocks.h"
 
-#define DEBUG 0
+#define DEBUG 1
 
 static int pg_info_fd;
+static int map_alloc_fd;
 static client_id_t id;
 
 // for handling the service thread 
 pthread_mutex_t service_started_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t service_started_cond = PTHREAD_COND_INITIALIZER;
 static int dsm_initialized = 0;
+static int dsm_opened = 0;
 
 void get_read_access(void * addr) {
   DEBUG_LOG("\e[31mget_read_access\e[0m %p", addr);
@@ -264,6 +266,7 @@ void dsm_init(client_id_t myId) {
 
   // make the socket for info messages
   pg_info_fd = open_serv_socket(ports[id].info_port);
+  map_alloc_fd = open_serv_socket(ports[id].map_alloc_port);
 }
 
 /** Opens a new distributed shared memory object. */
@@ -274,9 +277,51 @@ void * dsm_open(void *addr, size_t size) {
     exit(1);
   }
 
+  // ask the host to open
+  struct MapAllocMessage msg;
+  msg.type = DSM_OPEN;
+  msg.pg_address = addr;
+  msg.size = size;
+  msg.from = id;
+  sendMapAllocMessage(&msg, 0);
+  recvMapAllocMsg(map_alloc_fd);
+
   // set up the memory mapping 
   void *result = mmap(addr, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
   // return address
+  dsm_opened = 1;
   return result;
+}
+
+/** Malloc some space */
+void * dsm_malloc(size_t size) {
+  if (!dsm_initialized || !dsm_opened) {
+    DEBUG_LOG("ERROR: dsm_malloc() called without dsm_init() or dsm_open()");
+  }
+  
+  void *addr;
+
+  // send off message
+  DEBUG_LOG("mallocing %lu bytes", size);
+  struct MapAllocMessage msg;
+  msg.type = MALLOC;
+  msg.size = size;
+  msg.from = id;
+  sendMapAllocMessage(&msg, 0);
+
+  // get the location
+  struct MapAllocMessage *resp_msg;
+  resp_msg = recvMapAllocMsg(map_alloc_fd);
+  addr = resp_msg->pg_address;
+  if (resp_msg->size > 0) {
+    DEBUG_LOG("malloc'd %lu bytes at %p", 
+      resp_msg->size, resp_msg->pg_address);
+  } else {
+    DEBUG_LOG("malloc failed. exiting.");
+    exit(1);
+  }
+
+  free(resp_msg);
+  return addr;
 }

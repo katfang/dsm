@@ -21,10 +21,10 @@ char *ips[] = {
 };
 
 struct PortInfo ports[] = {
-  {14000, 14001},
-  {14002, 14003},
-  {14004, 14005},
-  {14006, 14007}
+  {14000, 14001, 14002},
+  {14003, 14004, 14005},
+  {14006, 14007, 14008},
+  {14009, 14010, 14011}
 };
 
 void error(const char *msg)
@@ -102,12 +102,17 @@ char * recvMsg(int sockfd, int length) {
 // given a server socket descriptor, accept and handle a connection.
 struct PageInfoMessage *recvPgInfoMsg(int sockfd) {
   return (struct PageInfoMessage *) recvMsg(sockfd, sizeof(struct
-        PageInfoMessage));
+    PageInfoMessage));
 }
 
 struct RequestPageMessage *recvReqPgMsg(int sockfd) {
   return (struct RequestPageMessage *) recvMsg(sockfd, sizeof(struct
-        RequestPageMessage));
+    RequestPageMessage));
+}
+
+struct MapAllocMessage *recvMapAllocMsg(int sockfd) {
+  return (struct MapAllocMessage *) recvMsg(sockfd, sizeof(struct
+    MapAllocMessage));
 }
 
 static void sendMsg(client_id_t id, char *msg, int port, int length) {
@@ -129,6 +134,7 @@ static void sendMsg(client_id_t id, char *msg, int port, int length) {
   DEBUG_LOG("Wrote message to %d", (int) id);
   close(sockfd);
 }
+
 /* returns something negative on failure. */
 int sendReqPgMsg(struct RequestPageMessage *msg, client_id_t id) {
   DEBUG_LOG("sending message of size %" PRIu64 " from %" PRIu64, sizeof(struct RequestPageMessage), msg->from);
@@ -144,4 +150,8 @@ int sendAckMsg(struct RequestPageMessage *msg, client_id_t id) {
 
 int sendPgInfoMsg(struct PageInfoMessage *msg, client_id_t id) {
   sendMsg(id, (char*) msg, ports[id].info_port, sizeof(struct PageInfoMessage));
+}
+
+int sendMapAllocMessage(struct MapAllocMessage* msg, client_id_t id) {
+  sendMsg(id, (char*) msg, ports[id].map_alloc_port, sizeof(struct MapAllocMessage));
 }

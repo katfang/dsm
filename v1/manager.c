@@ -181,7 +181,9 @@ int main(void) {
   // start the table to keep track of who's the owner
   // and the copyset
   owner_table = alloc_data_table();
+  owner_table->do_get_faults = 0;
   copysets = alloc_data_table();
+  copysets->do_get_faults = 0;
 
   signal(SIGINT, interruptHandler);
 

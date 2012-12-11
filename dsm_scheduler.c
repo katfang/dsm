@@ -87,6 +87,7 @@ void dequeue_and_run_task() {
   n = head;
   head = head->next;
   struct task *first = n;
+  int bored = 0;
 
   while(n->deps) { 
     // re-enqueue n if it has unresolved dependencies
@@ -96,10 +97,16 @@ void dequeue_and_run_task() {
     tail = &n->next;
     if(!head) head = n;
 
+    if (first == n) {
+      //printf("spun through list\n");
+      bored = 1;
+      waiting = 1;
+    }
+
     pthread_mutex_unlock(SCHED_LOCK);
     do { 
       pthread_yield();
-    } while(waiting);
+    } while(bored && waiting);
     pthread_mutex_lock(SCHED_LOCK);
 
     if(head) {
@@ -107,11 +114,6 @@ void dequeue_and_run_task() {
       head = head->next;
     }
     else goto end;
-
-    if (first == n) {
-      //printf("spun through list\n");
-      waiting = 1;
-    }
   }
   pthread_mutex_unlock(SCHED_LOCK);
   //print_task(n);

@@ -74,9 +74,12 @@ void interruptHandler(int signum) {
 void process_request(struct RequestPageMessage * msg) {
   page_lock(msg->pg_address);
   client_id_t pg_owner;
+  int r;
   
   // Master is owner -- respond to original dude with an empty page
-  if (get_page_data(owner_table, msg->pg_address, &pg_owner) < 0) {
+  r = get_page_data(owner_table, msg->pg_address, &pg_owner);
+  DEBUG_LOG("r is... %d", r);
+  if (r < 0 || pg_owner == 0) {
     DEBUG_LOG("received \e[32minitial\e[0m page request from %ld", msg->from);
     set_page_data(owner_table, msg->pg_address, msg->from);
 
@@ -181,7 +184,7 @@ int main(void) {
   // start the table to keep track of who's the owner
   // and the copyset
   owner_table = alloc_data_table();
-  owner_table->do_get_faults = 0;
+  // owner_table->do_get_faults = 0;
   copysets = alloc_data_table();
   copysets->do_get_faults = 0;
 

@@ -10,6 +10,6 @@
 #define WORKER_TALLY (*(int *)(SCHED_PAGE + 0x80))
 
 #define DATA_SPACE (void *)0xC1000000000
-#define DATA_SIZE  0x10000
+#define DATA_SIZE  0x1000000
 
 #endif // _DSM_SCHEDULER_H

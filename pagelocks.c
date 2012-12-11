@@ -5,7 +5,7 @@
 #include "debug.h"
 #include "pagedata.h"
 
-#define DEBUG 1
+#define DEBUG 0
 
 // These tables reflect the standard 4-level 64-bit page table, whose levels
 // are PGD, PUD, PMD, and PTE.
@@ -49,7 +49,6 @@ page_lock(void *va)
   }
 
   pthread_mutex_t *lock = &(*lme)[PTX(va)]; 
-//  if (DEBUG) printf("[pagelocks] locking page %p from thread #%ld\n", va, (long)pthread_self());
   DEBUG_LOG("locking page %p from thread #%ld", va, (long)pthread_self());
   int r = pthread_mutex_lock(lock);
   DEBUG_LOG("locked page %p from thread #%ld", va, (long)pthread_self());
@@ -69,7 +68,7 @@ page_unlock(void *va)
   if(! *lme) return -E_NO_ENTRY;
 
   pthread_mutex_t *lock = &(*lme)[PTX(va)];
-  if (DEBUG) printf("[pagelocks] unlocking page %p\n", va);
+  DEBUG_LOG("unlocking page %p", va);
   return pthread_mutex_unlock(lock);
   
 }

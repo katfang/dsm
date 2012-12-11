@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,13 +18,17 @@ char *ips[] = {
   "127.0.0.1",
   "127.0.0.1",
   "127.0.0.1",
+  "127.0.0.1",
+  "127.0.0.1",
 };
 
 struct PortInfo ports[] = {
-  {14000, 14001},
-  {14002, 14003},
-  {14004, 14005},
-  {14006, 14007}
+  {14000, 14001, 14002},
+  {14003, 14004, 14005},
+  {14006, 14007, 14008},
+  {14009, 14010, 14011},
+  {14012, 14013, 14014},
+  {14015, 14016, 14017}
 };
 
 void error(const char *msg)
@@ -101,12 +106,17 @@ char * recvMsg(int sockfd, int length) {
 // given a server socket descriptor, accept and handle a connection.
 struct PageInfoMessage *recvPgInfoMsg(int sockfd) {
   return (struct PageInfoMessage *) recvMsg(sockfd, sizeof(struct
-        PageInfoMessage));
+    PageInfoMessage));
 }
 
 struct RequestPageMessage *recvReqPgMsg(int sockfd) {
   return (struct RequestPageMessage *) recvMsg(sockfd, sizeof(struct
-        RequestPageMessage));
+    RequestPageMessage));
+}
+
+struct AllocMessage *recvAllocMsg(int sockfd) {
+  return (struct AllocMessage *) recvMsg(sockfd, sizeof(struct
+    AllocMessage));
 }
 
 static void sendMsg(client_id_t id, char *msg, int port, int length) {
@@ -128,12 +138,24 @@ static void sendMsg(client_id_t id, char *msg, int port, int length) {
   DEBUG_LOG("Wrote message to %d", (int) id);
   close(sockfd);
 }
+
 /* returns something negative on failure. */
 int sendReqPgMsg(struct RequestPageMessage *msg, client_id_t id) {
   DEBUG_LOG("sending message of size %" PRIu64 " from %" PRIu64, sizeof(struct RequestPageMessage), msg->from);
   sendMsg(id, (char*) msg, ports[id].req_port, sizeof(struct RequestPageMessage));
 }
 
+/* only use this for sending acks to the manager. */
+int sendAckMsg(struct RequestPageMessage *msg, client_id_t id) {
+  assert(id == 0);
+  DEBUG_LOG("sending message of size %" PRIu64 " from %" PRIu64, sizeof(struct RequestPageMessage), msg->from);
+  sendMsg(id, (char*) msg, ports[id].info_port, sizeof(struct RequestPageMessage));
+}
+
 int sendPgInfoMsg(struct PageInfoMessage *msg, client_id_t id) {
   sendMsg(id, (char*) msg, ports[id].info_port, sizeof(struct PageInfoMessage));
+}
+
+int sendAllocMessage(struct AllocMessage* msg, client_id_t id) {
+  sendMsg(id, (char*) msg, ports[id].alloc_port, sizeof(struct AllocMessage));
 }

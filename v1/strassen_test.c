@@ -5,7 +5,7 @@
 #include "scheduler.h"
 #include "strassen.h"
 
-#define MAT_DIMEN (1 << 7)
+#define MAT_DIMEN (1 << 10)
 #define MIN(x,y) (((x) < (y)) ? (x) : (y))
 
 void print_matrix(char* label, double **m);

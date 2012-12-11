@@ -8,7 +8,7 @@
 struct task *head = 0, **tail = &head, *current;
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
-struct task * generate_task(void (*func)(void *), void *arg) {
+struct task * generate_task(void (*func)(void *, struct task *), void *arg) {
   struct task *t = malloc(sizeof(struct task));
   t->func = func;
   t->arg = arg;
@@ -20,14 +20,17 @@ struct task * generate_task(void (*func)(void *), void *arg) {
 
 struct task * enqueue_task(struct task *t) {
   pthread_mutex_lock(&lock);
-  *tail = t;
-  tail = &t->next;
+  //printf("Enqueueing is hard. Let's go shopping %p\n", t);
+  //t->next = head;
+  //head = t;    
+    *tail = t;
+    tail = &t->next;
   pthread_mutex_unlock(&lock);
   return t;
 }
 
 // schedule a task to run
-struct task * enqueue(void (*func)(void *), void *arg) {
+struct task * enqueue(void (*func)(void *, struct task *), void *arg) {
   return enqueue_task(generate_task(func, arg));
 }
 
@@ -61,13 +64,8 @@ void task_dependency(struct task *parent, struct task *child) {
     whatsgoinon();
   }
   totaldeps++;
+  //printf("%p->deps incremented to %d\n", parent, parent->deps);
   pthread_mutex_unlock(&lock);
-}
-
-void task_continues(struct task *cc) {
-  if(current && current->parent) {
-    task_dependency(current->parent, cc);
-  }
 }
 
 int has_task() {
@@ -76,8 +74,8 @@ int has_task() {
 
 // runs first unblocked task, freeing it afterwards
 void dequeue_and_run_task() {
-  if(!head) return;
   pthread_mutex_lock(&lock);
+  if(!head) return;
   struct task *n;
   struct task *first;
   n = head;
@@ -91,15 +89,17 @@ void dequeue_and_run_task() {
     n = head;
     //if(first == n) whatsgoinon();
     head = head->next;
+    pthread_mutex_unlock(&lock);
+    pthread_yield();
+    pthread_mutex_lock(&lock);
   }
-  current = n;
   pthread_mutex_unlock(&lock);
-  n->func(n->arg);
+  n->func(n->arg, n);
   pthread_mutex_lock(&lock);
   if (n->parent) {
     n->parent->deps--;
     totaldeps--;
-    printf("%p->deps decremented to %d\n", n->parent, n->parent->deps);
+    //printf("%p->deps decremented to %d\n", n->parent, n->parent->deps);
   }
   pthread_mutex_unlock(&lock);
   free(n);

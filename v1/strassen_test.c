@@ -5,7 +5,7 @@
 #include "scheduler.h"
 #include "strassen.h"
 
-#define MAT_DIMEN (1 << 8)
+#define MAT_DIMEN (1 << 4)
 #define MIN(x,y) (((x) < (y)) ? (x) : (y))
 
 void print_matrix(char* label, double **m);
@@ -52,7 +52,7 @@ int main(void) {
 
   time_t start = time(NULL);
   printf("here\n");
-  strassen( a, b, c, MAT_DIMEN);
+  strassen( a, b, c, MAT_DIMEN, NULL);
   printf("here\n");
   
   pthread_t thr;

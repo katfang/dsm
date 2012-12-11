@@ -1,3 +1,8 @@
+#ifndef _STRASSEN_H
+#define _STRASSEN_H
+
+#include "scheduler.h"
+
 struct strassen_args {
   double **a, **b, **c;
   int tam;
@@ -12,6 +17,8 @@ struct strassen_continuation {
   double **c;
 };
 
-void strassen(double **a, double **b, double **c, int tam);
-void strassen_continue(void *a);
-void strassen_boxed(void *a);
+void strassen(double **a, double **b, double **c, int tam, struct task *t);
+void strassen_continue(void *a, struct task *t);
+void strassen_boxed(void *a, struct task *t);
+
+#endif // _STRASSEN_H

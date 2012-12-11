@@ -11,11 +11,11 @@
 #include "strassen.h"
 #include "scheduler.h"
 
-#define MIN_BLOCK (1 << 6)
+#define MIN_BLOCK (1 << 0)
  
 void mmult(double **a, double **b, double **c, int tam);
-void strassen(double **a, double **b, double **c, int tam);
-void strassen_boxed(void *a);
+void strassen(double **a, double **b, double **c, int tam, struct task *t);
+void strassen_boxed(void *a, struct task *t);
 void sum(double **a, double **b, double **result, int tam);
 void subtract(double **a, double **b, double **result, int tam);
 struct strassen_args *args(double **a, double **b, double **c,
@@ -36,7 +36,7 @@ void mmult(double **a, double **b, double **c, int tam) {
   }
 }
  
-void strassen(double **a, double **b, double **c, int tam) {
+void strassen(double **a, double **b, double **c, int tam, struct task *cur) {
  
   if (tam <= MIN_BLOCK) {
     mmult(a, b, c, tam);
@@ -164,11 +164,11 @@ void strassen(double **a, double **b, double **c, int tam) {
   cc->p5 = p5; cc->p6 = p6; cc->p7 = p7;
   cc->c = c;
   
-  task_continues(continuation);
+  if(cur && cur->parent) task_dependency(cur->parent, continuation);
   enqueue_task(continuation);
 }
 
-void strassen_continue(void *a) {
+void strassen_continue(void *a, struct task *t) {
   struct strassen_continuation *args = a;
   //printf("\e[32mcontinue\e[0m ");
   printf("\e[3%dmlevel\e[0m %d ", args->newTam, args->newTam);
@@ -234,10 +234,10 @@ void strassen_continue(void *a) {
   bResult = free_real_matrix(bResult, newTam);
 } // end of Strassen function
 
-void strassen_boxed(void *a) {
+void strassen_boxed(void *a, struct task *t) {
   struct strassen_args *args = a;
   //  printf("strassen %d\n", args->tam);
-  strassen(args->a, args->b, args->c, args->tam);
+  strassen(args->a, args->b, args->c, args->tam, t);
   if(args->freea) free_real_matrix(args->a, args->tam);
   if(args->freeb) free_real_matrix(args->b, args->tam);
   free(args);

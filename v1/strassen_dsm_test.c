@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
   printf("id is %d\n", id); 
   dsm_init(id);
 
-  dsm_reserve(SCHED_PAGE, 0x1000);
+  dsm_reserve(SCHED_PAGE, 0x2000);
   DEBUG_LOG("GETTING %d SPACE", DATA_SIZE);
   dsm_open(DATA_SPACE, DATA_SIZE);
   dsm_lock_init(MASTER_LOCK);
@@ -89,9 +89,14 @@ int main(int argc, char *argv[]) {
 
   printf("Consuming tasks\n");
   consume_tasks(NULL);
+  printf("Finished with tasks\n");
+  pthread_mutex_lock(MASTER_LOCK);
+  WORKER_TALLY--;
+  printf("Tally is %d\n", WORKER_TALLY);
+  pthread_mutex_unlock(MASTER_LOCK);
 
   if (master) {
-    //somehow thread_join?
+    while(WORKER_TALLY) pthread_yield();
 
     time_t end = time(NULL);
 

@@ -12,7 +12,7 @@
 #include "network.h"
 #include "pagelocks.h"
 
-#define DEBUG 1
+#define DEBUG 0
 
 static int pg_info_fd;
 static int alloc_fd;

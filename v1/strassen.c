@@ -30,7 +30,7 @@ void mmult(double **a, double **b, double **c, int tam) {
     for (j = 0; j < tam; j++) {
       c[i][j] = 0;
       for (k = 0; k < tam; k++) {
-	c[i][j] += a[i][k] * b[k][j];
+        c[i][j] += a[i][k] * b[k][j];
       }
     }
   }

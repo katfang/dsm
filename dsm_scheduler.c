@@ -98,15 +98,19 @@ void dequeue_and_run_task() {
     if(!head) head = n;
 
     if (first == n) {
+      if (bored) whats_goin_on();
       //printf("spun through list\n");
       bored = 1;
       waiting = 1;
     }
 
     pthread_mutex_unlock(SCHED_LOCK);
+    int n = 0;
     do { 
+      printf("yielding ... ");
       pthread_yield();
-    } while(bored && waiting);
+      printf("... back\n");
+    } while(bored && waiting && n++ < 3000);
     pthread_mutex_lock(SCHED_LOCK);
 
     if(head) {
@@ -115,6 +119,7 @@ void dequeue_and_run_task() {
     }
     else goto end;
   }
+  bored = 0;
   pthread_mutex_unlock(SCHED_LOCK);
   //print_task(n);
   n->func(n->arg, n);

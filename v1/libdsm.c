@@ -284,7 +284,10 @@ void * dsm_open(void *addr, size_t size) {
   msg.size = size;
   msg.from = id;
   sendAllocMessage(&msg, 0);
-  recvAllocMsg(alloc_fd);
+
+  // get response
+  struct AllocMessage *resp_msg = recvAllocMsg(alloc_fd);
+  free(resp_msg);
 
   // set up the memory mapping 
   void *result = mmap(addr, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -310,9 +313,10 @@ void * dsm_malloc(size_t size) {
   msg.from = id;
   sendAllocMessage(&msg, 0);
 
+  // TODO would be awesome to mmap in case we didn't already have the region mmap'd
+
   // get the location
-  struct AllocMessage *resp_msg;
-  resp_msg = recvAllocMsg(alloc_fd);
+  struct AllocMessage *resp_msg = recvAllocMsg(alloc_fd);
   addr = resp_msg->pg_address;
   if (resp_msg->size > 0) {
     DEBUG_LOG("malloc'd %lu bytes at %p", 
@@ -325,3 +329,53 @@ void * dsm_malloc(size_t size) {
   free(resp_msg);
   return addr;
 }
+
+/** This is essentially the old dsm_open that didn't give the space to the manager's allocator first. */
+void * dsm_reserve(void *addr, size_t size) {
+  // initialize other dsm-y type things
+  if (!dsm_initialized) {
+    DEBUG_LOG("ERROR: dsm_reserve() called without dsm_init()");
+    exit(1);
+  }
+
+  // ask the host to open
+  struct AllocMessage msg;
+  msg.type = RESERVE;
+  msg.pg_address = addr;
+  msg.size = size;
+  msg.from = id;
+  sendAllocMessage(&msg, 0);
+
+  // get response
+  struct AllocMessage *resp_msg = recvAllocMsg(alloc_fd);
+  free(resp_msg);
+
+  // set up the memory mapping 
+  // TODO Should check if already mapped by, say, dsm_open
+  void *result = mmap(addr, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+  // return address
+  return result;
+}
+
+/** This "frees" the memory in that it adds it back to the free list. Unintelligently. */ 
+void dsm_free(void *addr, size_t size) {
+  // initialize other dsm-y type things
+  if (!dsm_initialized) {
+    DEBUG_LOG("ERROR: dsm_free() called without dsm_init()");
+    exit(1);
+  }
+
+  // ask the host to open
+  struct AllocMessage msg;
+  msg.type = FREE;
+  msg.pg_address = addr;
+  msg.size = size;
+  msg.from = id;
+  sendAllocMessage(&msg, 0);
+
+  // get response
+  struct AllocMessage *resp_msg = recvAllocMsg(alloc_fd);
+  free(resp_msg);
+}
+

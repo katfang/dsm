@@ -10,9 +10,13 @@ enum msg_t {
   INVAL, // used with RequestPageMessage only
   ACK,
   MALLOC,
-  DSM_OPEN,
   MALLOC_RESPONSE,
-  DSM_OPEN_RESPONSE
+  DSM_OPEN,
+  DSM_OPEN_RESPONSE,
+  RESERVE,
+  RESERVE_RESPONSE,
+  FREE,
+  FREE_RESPONSE
 };
 
 #pragma pack(push)

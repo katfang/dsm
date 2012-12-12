@@ -149,7 +149,7 @@ int sendReqPgMsg(struct RequestPageMessage *msg, client_id_t id) {
 int sendAckMsg(struct RequestPageMessage *msg, client_id_t id) {
   assert(id == 0);
   DEBUG_LOG("sending message of size %" PRIu64 " from %" PRIu64, sizeof(struct RequestPageMessage), msg->from);
-  sendMsg(id, (char*) msg, ports[id].info_port, sizeof(struct RequestPageMessage));
+  sendMsg(id, (char*) msg, ports[id].req_port, sizeof(struct RequestPageMessage));
 }
 
 int sendPgInfoMsg(struct PageInfoMessage *msg, client_id_t id) {

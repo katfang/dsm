@@ -31,6 +31,11 @@ static struct DataTable *copysets;
 struct DataTable *owner_table;
 int sockfd = -1;
 
+void spawn_process_request_thread(void *xa);
+void * request_thread(void *xa);
+void process_request(struct RequestPageMessage* msg);
+void process_ack(struct RequestPageMessage* msg);
+
 // for handling the ack thread 
 pthread_mutex_t ack_started_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t ack_started_cond = PTHREAD_COND_INITIALIZER;
@@ -69,6 +74,26 @@ void interruptHandler(int signum) {
     signal(SIGINT, SIG_DFL);
     kill(getpid(), SIGINT);
   }
+}
+
+void spawn_process_request_thread(void *xa) {
+  pthread_t tha;
+  if (pthread_create(&tha, NULL, request_thread, xa) < 0) {
+    DEBUG_LOG("Error spawning request thread.");
+  }
+}
+
+void * request_thread(void *xa) {
+  DEBUG_LOG(">>>>> Spawned thread to process request.");
+  struct RequestPageMessage *msg = (struct RequestPageMessage *) xa;
+  if (msg->type == ACK) {
+    process_ack(msg);
+  } else {
+    process_request(msg);
+  }
+  free(msg);
+  DEBUG_LOG("<<<<< Finished processing a request.");
+  return NULL;
 }
 
 void process_request(struct RequestPageMessage * msg) {
@@ -159,7 +184,6 @@ void * ack_thread(void *xa) {
   }
 
   return NULL;
-
 }
 
 /** Just starts the thread that listens for acks */
@@ -197,8 +221,7 @@ int main(void) {
   DEBUG_LOG("starting on port %d...", ports[0].req_port);
 
   while (msg = recvReqPgMsg(sockfd)) {
-    process_request(msg);
-    free(msg);
+    spawn_process_request_thread(msg);
   }
 
   DEBUG_LOG("ending...");

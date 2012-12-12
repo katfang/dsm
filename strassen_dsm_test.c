@@ -112,7 +112,6 @@ int main(int argc, char *argv[]) {
     printf("Elapsed time: %ld seconds\n", end - start);
 
     MASTER_FINISHED = 1;
-
   }
   
   return 0;

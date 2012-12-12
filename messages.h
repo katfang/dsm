@@ -18,7 +18,8 @@ enum msg_t {
   FREE,
   FREE_RESPONSE,
   LOCK_INIT,
-  LOCK_MADE
+  LOCK_MADE,
+  RELEASE
 };
 
 #pragma pack(push)

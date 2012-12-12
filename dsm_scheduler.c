@@ -3,8 +3,11 @@
 #include <stdlib.h>
 #include <pthread.h>
 
+#include "debug.h"
 #include "dsm_scheduler.h"
 #include "libdsm.h"
+
+#define DEBUG 1
 
 #define head (*(struct task **)(SCHED_PAGE + 0x88))
 #define tail (*(struct task ***)(SCHED_PAGE + 0x90))
@@ -21,7 +24,7 @@ struct task * generate_task(void (*func)(void *, struct task *), void *arg) {
 }
 
 struct task * enqueue_task(struct task *t) {
-  pthread_mutex_lock(SCHED_LOCK);
+  while (pthread_mutex_trylock(SCHED_LOCK) == EBUSY); //pthread_mutex_lock(SCHED_LOCK);
   //printf("Queues are hard. Let's go shopping %p\n", t);
   t->next = head;
   if(!head) tail = &t->next;
@@ -40,7 +43,7 @@ struct task * enqueue(void (*func)(void *, struct task *), void *arg) {
 int totaldeps = 0;
 
 void print_task(struct task *t) {
-  printf("%p {func: %p, deps: %d, parent %p}\n", t, t->func, t->deps, t->parent);
+  DEBUG_LOG("%p {func: %p, deps: %d, parent %p}\n", t, t->func, t->deps, t->parent);
 }
 
 void whats_goin_on() {
@@ -57,17 +60,18 @@ void whats_goin_on() {
     print_task(n);
     n = n->next;
   }
-  exit(1);
+  // exit(1);
 }
 
 void task_dependency(struct task *parent, struct task *child) {
-  pthread_mutex_lock(SCHED_LOCK);
+  while (pthread_mutex_trylock(SCHED_LOCK) == EBUSY); //pthread_mutex_lock(SCHED_LOCK);
   if(child->parent) {
-    printf("say what?! %p\n", child);
+    DEBUG_LOG("say what?! %p\n", child);
     whats_goin_on();
   }
   child->parent = parent;
   if(parent->deps++ > 10) {
+    DEBUG_LOG("a what's going on");
     whats_goin_on();
   }
   totaldeps++;
@@ -81,7 +85,7 @@ int has_task() {
 
 // runs first unblocked task, freeing it afterwards
 void dequeue_and_run_task() {
-  pthread_mutex_lock(SCHED_LOCK);
+  while (pthread_mutex_trylock(SCHED_LOCK) == EBUSY); //pthread_mutex_lock(SCHED_LOCK);
   if(!head) goto end;
   struct task *n;
   n = head;
@@ -98,7 +102,10 @@ void dequeue_and_run_task() {
     if(!head) head = n;
 
     if (first == n) {
-      if (bored) whats_goin_on();
+      if (bored) {
+        DEBUG_LOG("I'm bored.");
+        whats_goin_on();
+      }
       //printf("spun through list\n");
       bored = 1;
       waiting = 1;
@@ -107,11 +114,11 @@ void dequeue_and_run_task() {
     pthread_mutex_unlock(SCHED_LOCK);
     int n = 0;
     do { 
-      printf("yielding ... ");
+      // DEBUG_LOG("yielding ... ");
       pthread_yield();
-      printf("... back\n");
+      // DEBUG_LOG("... back\n");
     } while(bored && waiting && n++ < 3000);
-    pthread_mutex_lock(SCHED_LOCK);
+    while (pthread_mutex_trylock(SCHED_LOCK) == EBUSY); //pthread_mutex_lock(SCHED_LOCK);
 
     if(head) {
       n = head;
@@ -123,7 +130,7 @@ void dequeue_and_run_task() {
   pthread_mutex_unlock(SCHED_LOCK);
   //print_task(n);
   n->func(n->arg, n);
-  pthread_mutex_lock(SCHED_LOCK);
+  while (pthread_mutex_trylock(SCHED_LOCK) == EBUSY); // pthread_mutex_lock(SCHED_LOCK);
   if (n->parent) {
     n->parent->deps--;
     totaldeps--;

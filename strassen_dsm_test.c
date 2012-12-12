@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
   dsm_lock_init(SCHED_LOCK);
   printf("init'd schedlock\n");
 
-  pthread_mutex_lock(MASTER_LOCK);
+  while (pthread_mutex_trylock(MASTER_LOCK) == EBUSY); // pthread_mutex_lock(MASTER_LOCK);
   printf("locked masterlock\n");
 
   master = !(WORKER_TALLY++);
@@ -75,8 +75,8 @@ int main(int argc, char *argv[]) {
       b[i] = (double*) dsm_malloc(sizeof(double) * MAT_DIMEN);
       c[i] = (double*) dsm_malloc(sizeof(double) * MAT_DIMEN);
       for (j = 0; j < MAT_DIMEN; j++) {
-	a[i][j] = rand() % 5;
-	b[i][j] = rand() % 5;
+        a[i][j] = rand() % 5;
+        b[i][j] = rand() % 5;
       }
     }
 
@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
   printf("Consuming tasks\n");
   consume_tasks(NULL);
   printf("Finished with tasks\n");
-  pthread_mutex_lock(MASTER_LOCK);
+  while (pthread_mutex_trylock(MASTER_LOCK) == EBUSY); // pthread_mutex_lock(MASTER_LOCK);
   WORKER_TALLY--;
   printf("Tally is %d\n", WORKER_TALLY);
   pthread_mutex_unlock(MASTER_LOCK);

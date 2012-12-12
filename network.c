@@ -11,7 +11,7 @@
 #include "debug.h"
 #include "messages.h"
 #include "network.h"
-#define DEBUG 0
+#define DEBUG 1
 
 char *ips[] = {
   "127.0.0.1", // actually manager

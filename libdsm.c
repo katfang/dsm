@@ -12,7 +12,7 @@
 #include "network.h"
 #include "pagelocks.h"
 
-#define DEBUG 0
+#define DEBUG 1
 
 static int pg_info_fd;
 static int alloc_fd;
@@ -227,6 +227,7 @@ void * service_thread(void *xa) {
   // actually start listening on the socket.
   struct RequestPageMessage *msg;
   while (msg = recvReqPgMsg(sockfd)) {
+    DEBUG_LOG("spinning in service ... ");
     handle_request(msg);
     free(msg);
   }

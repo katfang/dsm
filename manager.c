@@ -29,6 +29,7 @@
 pthread_mutex_t manager_lock = PTHREAD_MUTEX_INITIALIZER;
 static struct DataTable *copysets;
 struct DataTable *owner_table;
+struct DataTable *release_table;
 int sockfd = -1;
 
 void spawn_process_request_thread(void *xa);
@@ -37,9 +38,9 @@ void process_request(struct RequestPageMessage* msg);
 void process_ack(struct RequestPageMessage* msg);
 
 // for handling the ack thread 
-pthread_mutex_t ack_started_lock = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t ack_started_cond = PTHREAD_COND_INITIALIZER;
-static int ack_thread_initialized = 0;
+pthread_mutex_t release_started_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t release_started_cond = PTHREAD_COND_INITIALIZER;
+static int release_thread_initialized = 0;
 
 // invalidate page's copyset
 void invalidate(void * addr) {
@@ -112,7 +113,19 @@ void process_request(struct RequestPageMessage * msg) {
     outmsg.type = WRITE;
     outmsg.pg_address = msg->pg_address;
     outmsg.copyset = 0;
-    memset(outmsg.pg_contents, 0, PGSIZE);
+
+    // get content or all 0s
+    char* pg;
+    get_page_data(release_table, msg->pg_address, (data_t*) &pg);
+    DEBUG_LOG("pg: %p", pg);
+    if (pg == 0 || pg == NULL) {
+      memset(outmsg.pg_contents, 0, PGSIZE);
+    } else {
+      memcpy(outmsg.pg_contents, pg, PGSIZE);
+      set_page_data(release_table, msg->pg_address, 0);
+      free(pg);
+    }
+
     DEBUG_LOG("outmsg.type is %d", outmsg.type);
     DEBUG_LOG("sending info msg %p to %" PRIu64 "", &outmsg, msg->from);
     sendPgInfoMsg(&outmsg, msg->from);
@@ -163,23 +176,39 @@ void process_ack(struct RequestPageMessage * msg) {
   DEBUG_LOG("\e[32munlocked\e[0m %p for write req from %" PRIu64, msg->pg_address, msg->from);
 }
 
-void * ack_thread(void *xa) {
-  int ack_sockfd;
+void process_release(struct PageInfoMessage *msg) {
+  assert(msg->type == RELEASE);
+  page_lock(msg->pg_address);
 
-  pthread_mutex_lock(&ack_started_lock);
+  // copy over stuff
+  char* pg = (char*) malloc(PGSIZE * sizeof(char));
+  memcpy(pg, msg->pg_contents, PGSIZE);
+  set_page_data(release_table, msg->pg_address, (data_t) pg);
+
+  set_page_data(owner_table, msg->pg_address, 0);
+  // could send response
+
+
+  page_unlock(msg->pg_address);
+}
+
+void * release_thread(void *xa) {
+  int release_sockfd;
+
+  pthread_mutex_lock(&release_started_lock);
 
   // open socket
-  ack_sockfd = open_serv_socket(ports[0].info_port); 
+  release_sockfd = open_serv_socket(ports[0].info_port); 
   
   // let everyone know we're done initializing
-  ack_thread_initialized = 1;
-  pthread_cond_broadcast(&ack_started_cond);
-  pthread_mutex_unlock(&ack_started_lock);
+  release_thread_initialized = 1;
+  pthread_cond_broadcast(&release_started_cond);
+  pthread_mutex_unlock(&release_started_lock);
 
   // actually start listening on the socket.
-  struct RequestPageMessage *msg;
-  while (msg = recvReqPgMsg(ack_sockfd)) {
-    process_ack(msg);
+  struct PageInfoMessage *msg;
+  while (msg = recvPgInfoMsg(release_sockfd)) {
+    process_release(msg);
     free(msg);
   }
 
@@ -187,28 +216,29 @@ void * ack_thread(void *xa) {
 }
 
 /** Just starts the thread that listens for acks */
-void start_ack_thread(void) {
+void start_release_thread(void) {
   pthread_t tha;
 
-  pthread_mutex_lock(&ack_started_lock);
-  if (pthread_create(&tha, NULL, ack_thread, NULL) == 0) {
-    while(!ack_thread_initialized) pthread_cond_wait(&ack_started_cond, &ack_started_lock);
-    pthread_mutex_unlock(&ack_started_lock);
+  pthread_mutex_lock(&release_started_lock);
+  if (pthread_create(&tha, NULL, release_thread, NULL) == 0) {
+    while(!release_thread_initialized) pthread_cond_wait(&release_started_cond, &release_started_lock);
+    pthread_mutex_unlock(&release_started_lock);
   } else {
-    pthread_mutex_unlock(&ack_started_lock);
+    pthread_mutex_unlock(&release_started_lock);
     DEBUG_LOG("Error starting ack thread.");
   }
 }
 
 int main(void) {
-  // start the ack thread
-  start_ack_thread();
+  // start the release thread + alloc thread
+  start_release_thread();
   start_alloc();
 
   // start the table to keep track of who's the owner
   // and the copyset
   owner_table = alloc_data_table();
-  // owner_table->do_get_faults = 0;
+  release_table = alloc_data_table();
+  release_table->do_get_faults = 0;
   copysets = alloc_data_table();
   copysets->do_get_faults = 0;
 

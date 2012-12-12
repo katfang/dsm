@@ -113,6 +113,8 @@ int main(int argc, char *argv[]) {
 
     MASTER_FINISHED = 1;
   }
+  dsm_release(&MASTER_FINISHED);
+  printf("finished.\n");
   
   return 0;
 }

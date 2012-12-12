@@ -10,6 +10,7 @@
 #include "libdsm.h"
 #include "messages.h"
 #include "network.h"
+#include "pagedata.h"
 #include "pagelocks.h"
 
 #define DEBUG 0
@@ -407,4 +408,14 @@ int dsm_lock_init(void *addr) {
   
   free(resp_msg);
   return 0;
+}
+
+void dsm_release(void *addr) {
+  addr = (void*) (((uintptr_t) addr) & ~0xFFF);
+
+  struct PageInfoMessage msg;
+  msg.type = RELEASE;
+  msg.pg_address = addr;
+  memcpy(msg.pg_contents, addr, PGSIZE);
+  sendPgInfoMsg(&msg, 0);
 }

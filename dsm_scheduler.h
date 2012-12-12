@@ -7,6 +7,7 @@
 #define MASTER_PAGE (void *)0xC0000001000
 #define MASTER_LOCK ((pthread_mutex_t *)(MASTER_PAGE + 0))
 #define WORKER_TALLY (*(int *)(MASTER_PAGE + 0x40))
+#define MASTER_FINISHED (*(int *)(MASTER_PAGE + 0x50))
 
 #define SCHED_PAGE (void *)0xC0000000000
 #define SCHED_LOCK ((pthread_mutex_t *)(SCHED_PAGE + 0))

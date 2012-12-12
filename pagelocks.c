@@ -5,7 +5,7 @@
 #include "debug.h"
 #include "pagedata.h"
 
-#define DEBUG 1
+#define DEBUG 0
 
 // These tables reflect the standard 4-level 64-bit page table, whose levels
 // are PGD, PUD, PMD, and PTE.

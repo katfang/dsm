@@ -51,18 +51,20 @@ int main(int argc, char *argv[]) {
   DEBUG_LOG("GETTING %d SPACE", DATA_SIZE);
   dsm_open(DATA_SPACE, DATA_SIZE);
   dsm_lock_init(MASTER_LOCK);
-  printf("init'd masterlock\n");
+  DEBUG_LOG("init'd masterlock");
   dsm_lock_init(SCHED_LOCK);
-  printf("init'd schedlock\n");
+  DEBUG_LOG("init'd schedlock");
 
   while (pthread_mutex_trylock(MASTER_LOCK) == EBUSY); // pthread_mutex_lock(MASTER_LOCK);
-  printf("locked masterlock\n");
+  DEBUG_LOG("locked masterlock");
 
   master = !(WORKER_TALLY++);
+  DEBUG_LOG("Tally incremented to %d", WORKER_TALLY);
 
   if (master) {
     printf("I'm master. Setting up arrays.\n");
     master = 1;
+    MASTER_FINISHED = 0;
     int i = 0, j = 0;
     srand(123);
 
@@ -92,10 +94,14 @@ int main(int argc, char *argv[]) {
   printf("Finished with tasks\n");
   while (pthread_mutex_trylock(MASTER_LOCK) == EBUSY); // pthread_mutex_lock(MASTER_LOCK);
   WORKER_TALLY--;
-  printf("Tally is %d\n", WORKER_TALLY);
+  DEBUG_LOG("Tally is %d", WORKER_TALLY);
   pthread_mutex_unlock(MASTER_LOCK);
 
-  while(WORKER_TALLY) pthread_yield();
+  while(WORKER_TALLY || (!master && !MASTER_FINISHED)) {
+    DEBUG_LOG("Tally: %d, master: %d, master_finished: %d",
+	      WORKER_TALLY, master, MASTER_FINISHED);
+    pthread_yield();
+  }
 
   if (master) {
     time_t end = time(NULL);
@@ -104,6 +110,8 @@ int main(int argc, char *argv[]) {
     print_matrix("b", b);
     print_matrix("c", c);
     printf("Elapsed time: %ld seconds\n", end - start);
+
+    MASTER_FINISHED = 1;
 
   }
   

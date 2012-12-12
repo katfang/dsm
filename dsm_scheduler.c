@@ -7,7 +7,7 @@
 #include "dsm_scheduler.h"
 #include "libdsm.h"
 
-#define DEBUG 1
+#define DEBUG 0
 
 #define head (*(struct task **)(SCHED_PAGE + 0x88))
 #define tail (*(struct task ***)(SCHED_PAGE + 0x90))
@@ -25,7 +25,7 @@ struct task * generate_task(void (*func)(void *, struct task *), void *arg) {
 
 struct task * enqueue_task(struct task *t) {
   while (pthread_mutex_trylock(SCHED_LOCK) == EBUSY); //pthread_mutex_lock(SCHED_LOCK);
-  //DEBUG_LOG("Queues are hard. Let's go shopping %p\n", t);
+  //DEBUG_LOG("Queues are hard. Let's go shopping %p", t);
   t->next = head;
   if(!head) tail = &t->next;
   head = t;    
@@ -43,18 +43,18 @@ struct task * enqueue(void (*func)(void *, struct task *), void *arg) {
 int totaldeps = 0;
 
 void print_task(struct task *t) {
-  DEBUG_LOG("%p {func: %p, deps: %d, parent %p}\n", t, t->func, t->deps, t->parent);
+  DEBUG_LOG("%p {func: %p, deps: %d, parent %p}", t, t->func, t->deps, t->parent);
 }
 
 void whats_goin_on() {
   struct task *n = head;
-  DEBUG_LOG("\ntotaldeps: %d\n", totaldeps);
-  DEBUG_LOG("[");
+  DEBUG_LOG("totaldeps: %d", totaldeps);
+  printf("[");
   while(n) {
-    DEBUG_LOG("%p, ", n);
+    printf("%p, ", n);
     n = n->next;
   }
-  DEBUG_LOG("]\n");
+  printf("]\n");
   n = head;
   while(n) {
     print_task(n);
@@ -66,7 +66,7 @@ void whats_goin_on() {
 void task_dependency(struct task *parent, struct task *child) {
   while (pthread_mutex_trylock(SCHED_LOCK) == EBUSY); //pthread_mutex_lock(SCHED_LOCK);
   if(child->parent) {
-    DEBUG_LOG("say what?! %p\n", child);
+    DEBUG_LOG("say what?! %p", child);
     whats_goin_on();
   }
   child->parent = parent;
@@ -75,7 +75,7 @@ void task_dependency(struct task *parent, struct task *child) {
     whats_goin_on();
   }
   totaldeps++;
-  //DEBUG_LOG("%p->deps incremented to %d\n", parent, parent->deps);
+  //DEBUG_LOG("%p->deps incremented to %d", parent, parent->deps);
   pthread_mutex_unlock(SCHED_LOCK);
 }
 
@@ -95,7 +95,7 @@ void dequeue_and_run_task() {
 
   while(n->deps) { 
     // re-enqueue n if it has unresolved dependencies
-    //DEBUG_LOG("reenqueue\n");
+    //DEBUG_LOG("reenqueue");
     *tail = n;
     n->next = 0;
     tail = &n->next;
@@ -106,7 +106,7 @@ void dequeue_and_run_task() {
         DEBUG_LOG("I'm bored.");
         whats_goin_on();
       }
-      //DEBUG_LOG("spun through list\n");
+      //DEBUG_LOG("spun through list");
       bored = 1;
       waiting = 1;
       }*/
@@ -116,7 +116,7 @@ void dequeue_and_run_task() {
     //do { 
       // DEBUG_LOG("yielding ... ");
       pthread_yield();
-      // DEBUG_LOG("... back\n");
+      // DEBUG_LOG("... back");
       //} while(bored && waiting && times++ < 3000);
     while (pthread_mutex_trylock(SCHED_LOCK) == EBUSY);
 
@@ -134,7 +134,7 @@ void dequeue_and_run_task() {
   if (n->parent) {
     n->parent->deps--;
     totaldeps--;
-    //DEBUG_LOG("%p->deps decremented to %d\n", n->parent, n->parent->deps);
+    //DEBUG_LOG("%p->deps decremented to %d", n->parent, n->parent->deps);
   }
   //  waiting = 0;
   dsm_free(n, sizeof(struct task));

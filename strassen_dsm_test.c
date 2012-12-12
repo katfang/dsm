@@ -95,9 +95,9 @@ int main(int argc, char *argv[]) {
   printf("Tally is %d\n", WORKER_TALLY);
   pthread_mutex_unlock(MASTER_LOCK);
 
-  if (master) {
-    while(WORKER_TALLY) pthread_yield();
+  while(WORKER_TALLY) pthread_yield();
 
+  if (master) {
     time_t end = time(NULL);
 
     print_matrix("a", a);

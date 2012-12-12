@@ -25,7 +25,7 @@ struct task * generate_task(void (*func)(void *, struct task *), void *arg) {
 
 struct task * enqueue_task(struct task *t) {
   while (pthread_mutex_trylock(SCHED_LOCK) == EBUSY); //pthread_mutex_lock(SCHED_LOCK);
-  //printf("Queues are hard. Let's go shopping %p\n", t);
+  //DEBUG_LOG("Queues are hard. Let's go shopping %p\n", t);
   t->next = head;
   if(!head) tail = &t->next;
   head = t;    
@@ -48,13 +48,13 @@ void print_task(struct task *t) {
 
 void whats_goin_on() {
   struct task *n = head;
-  printf("\ntotaldeps: %d\n", totaldeps);
-  printf("[");
+  DEBUG_LOG("\ntotaldeps: %d\n", totaldeps);
+  DEBUG_LOG("[");
   while(n) {
-    printf("%p, ", n);
+    DEBUG_LOG("%p, ", n);
     n = n->next;
   }
-  printf("]\n");
+  DEBUG_LOG("]\n");
   n = head;
   while(n) {
     print_task(n);
@@ -75,7 +75,7 @@ void task_dependency(struct task *parent, struct task *child) {
     whats_goin_on();
   }
   totaldeps++;
-  //printf("%p->deps incremented to %d\n", parent, parent->deps);
+  //DEBUG_LOG("%p->deps incremented to %d\n", parent, parent->deps);
   pthread_mutex_unlock(SCHED_LOCK);
 }
 
@@ -95,30 +95,30 @@ void dequeue_and_run_task() {
 
   while(n->deps) { 
     // re-enqueue n if it has unresolved dependencies
-    //printf("reenqueue\n");
+    //DEBUG_LOG("reenqueue\n");
     *tail = n;
     n->next = 0;
     tail = &n->next;
     if(!head) head = n;
 
-    if (first == n) {
+    /*if (first == n) {
       if (bored) {
         DEBUG_LOG("I'm bored.");
         whats_goin_on();
       }
-      //printf("spun through list\n");
+      //DEBUG_LOG("spun through list\n");
       bored = 1;
       waiting = 1;
-    }
+      }*/
 
     pthread_mutex_unlock(SCHED_LOCK);
-    int n = 0;
-    do { 
+    //int times = 0;
+    //do { 
       // DEBUG_LOG("yielding ... ");
       pthread_yield();
       // DEBUG_LOG("... back\n");
-    } while(bored && waiting && n++ < 3000);
-    while (pthread_mutex_trylock(SCHED_LOCK) == EBUSY); //pthread_mutex_lock(SCHED_LOCK);
+      //} while(bored && waiting && times++ < 3000);
+    while (pthread_mutex_trylock(SCHED_LOCK) == EBUSY);
 
     if(head) {
       n = head;
@@ -126,17 +126,17 @@ void dequeue_and_run_task() {
     }
     else goto end;
   }
-  bored = 0;
+  //  bored = 0;
   pthread_mutex_unlock(SCHED_LOCK);
   //print_task(n);
   n->func(n->arg, n);
-  while (pthread_mutex_trylock(SCHED_LOCK) == EBUSY); // pthread_mutex_lock(SCHED_LOCK);
+  while (pthread_mutex_trylock(SCHED_LOCK) == EBUSY);
   if (n->parent) {
     n->parent->deps--;
     totaldeps--;
-    //printf("%p->deps decremented to %d\n", n->parent, n->parent->deps);
+    //DEBUG_LOG("%p->deps decremented to %d\n", n->parent, n->parent->deps);
   }
-  waiting = 0;
+  //  waiting = 0;
   dsm_free(n, sizeof(struct task));
     end:
   pthread_mutex_unlock(SCHED_LOCK);
